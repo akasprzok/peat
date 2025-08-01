@@ -1,0 +1,8 @@
+# goreleaser
+dist/
+
+# Task
+.task/
+
+# binary
+/peat
