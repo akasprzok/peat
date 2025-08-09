@@ -17,11 +17,12 @@ type prometheusClient struct {
 
 type Client interface {
 	Query(query string) (v1.Warnings, model.Vector, error)
+	QueryRange(query string, start, end time.Time, step time.Duration) (v1.Warnings, model.Matrix, error)
 }
 
 func NewClient(url string) Client {
 	client, err := api.NewClient(api.Config{
-		Address: "http://vmselect-multi-cluster:8481/select/13/prometheus",
+		Address: url,
 	})
 	if err != nil {
 		fmt.Printf("Error creating client: %v\n", err)
@@ -45,6 +46,28 @@ func (c *prometheusClient) Query(query string) (v1.Warnings, model.Vector, error
 		vector := result.(model.Vector)
 		return warnings, vector, nil
 	default:
-		return warnings, vector, fmt.Errorf("Unknown result type: %s\n", result.Type())
+		return warnings, vector, fmt.Errorf("unknown result type: %s", result.Type())
+	}
+}
+
+func (c *prometheusClient) QueryRange(query string, start, end time.Time, step time.Duration) (v1.Warnings, model.Matrix, error) {
+	var matrix model.Matrix
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	result, warnings, err := c.v1api.QueryRange(ctx, query, v1.Range{
+		Start: start,
+		End:   end,
+		Step:  step,
+	}, v1.WithTimeout(5*time.Second))
+	if err != nil {
+		return warnings, matrix, err
+	}
+
+	switch result.Type() {
+	case model.ValMatrix:
+		matrix := result.(model.Matrix)
+		return warnings, matrix, nil
+	default:
+		return warnings, matrix, fmt.Errorf("unknown result type: %s", result.Type())
 	}
 }
