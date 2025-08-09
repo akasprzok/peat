@@ -1,6 +1,9 @@
 package charts
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/NimbleMarkets/ntcharts/canvas/runes"
 	"github.com/NimbleMarkets/ntcharts/linechart/timeserieslinechart"
 	"github.com/charmbracelet/lipgloss"
@@ -8,13 +11,6 @@ import (
 
 	"math"
 )
-
-var defaultStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("63")) // purple
-
-var replacedStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("5")) // pink
 
 var lineStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("4")) // blue
@@ -43,26 +39,31 @@ func Timeseries(matrix model.Matrix, width int) string {
 
 	height := width / 8
 
+	legend := ""
+
 	lc := timeserieslinechart.New(width, height)
 	lc.AxisStyle = axisStyle
 	lc.LabelStyle = labelStyle
 	lc.XLabelFormatter = timeserieslinechart.HourTimeLabelFormatter()
-	lc.UpdateHandler = timeserieslinechart.SecondUpdateHandler(1)
 	lc.SetYRange(float64(minYValue), float64(maxYValue))     // set expected Y values (values can be less or greater than what is displayed)
 	lc.SetViewYRange(float64(minYValue), float64(maxYValue)) // setting display Y values will fail unless set expected Y values first
 	lc.SetStyle(lineStyle)
 	lc.SetLineStyle(runes.ThinLineStyle) // ThinLineStyle replaces default linechart arcline rune style
 
-	for _, stream := range matrix {
+	for i, stream := range matrix {
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
+		legend += "\n" + style.Render(fmt.Sprintf("%c %s", runes.FullBlock, stream.Metric.String()))
+		lc.SetDataSetStyle(stream.Metric.String(), style)
 		for _, sample := range stream.Values {
 			point := timeserieslinechart.TimePoint{
 				Time:  sample.Timestamp.Time(),
 				Value: float64(sample.Value),
 			}
-			lc.Push(point)
+			lc.PushDataSet(stream.Metric.String(), point)
 		}
 	}
 
 	lc.DrawBrailleAll()
-	return lc.View()
+
+	return lc.View() + legend
 }

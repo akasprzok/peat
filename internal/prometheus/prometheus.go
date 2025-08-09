@@ -52,13 +52,13 @@ func (c *prometheusClient) Query(query string) (v1.Warnings, model.Vector, error
 
 func (c *prometheusClient) QueryRange(query string, start, end time.Time, step time.Duration) (v1.Warnings, model.Matrix, error) {
 	var matrix model.Matrix
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	result, warnings, err := c.v1api.QueryRange(ctx, query, v1.Range{
 		Start: start,
 		End:   end,
 		Step:  step,
-	}, v1.WithTimeout(5*time.Second))
+	}, v1.WithTimeout(120*time.Second))
 	if err != nil {
 		return warnings, matrix, err
 	}

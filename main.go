@@ -37,7 +37,11 @@ func main() {
 		if len(warnings) > 0 {
 			fmt.Printf("Warnings: %v\n", warnings)
 		}
-		charter.PrintQuery(vector)
+		if len(vector) > 0 {
+			charter.PrintQuery(vector)
+		} else {
+			fmt.Println("No Data")
+		}
 	case "query-range <query> <range>":
 		prometheusClient := prometheus.NewClient(cli.QueryRange.PrometheusURL)
 		end := time.Now()
@@ -53,7 +57,12 @@ func main() {
 		if len(warnings) > 0 {
 			fmt.Printf("Warnings: %v\n", warnings)
 		}
-		charter.PrintQueryRange(matrix)
+
+		if len(matrix) > 0 {
+			charter.PrintQueryRange(matrix)
+		} else {
+			fmt.Println("No Data")
+		}
 	default:
 		fmt.Printf("Error executing command: %v\n", ctx.Command())
 		panic(ctx.Command())
