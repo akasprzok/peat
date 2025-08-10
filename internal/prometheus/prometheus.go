@@ -17,7 +17,8 @@ type prometheusClient struct {
 
 type Client interface {
 	Query(query string) (v1.Warnings, model.Vector, error)
-	QueryRange(query string, start, end time.Time, step time.Duration) (v1.Warnings, model.Matrix, error)
+	QueryRange(query string, start, end time.Time, step time.Duration) (model.Matrix, v1.Warnings, error)
+	Series(query string, start, end time.Time, limit uint64) ([]model.LabelSet, v1.Warnings, error)
 }
 
 func NewClient(url string) Client {
@@ -50,7 +51,7 @@ func (c *prometheusClient) Query(query string) (v1.Warnings, model.Vector, error
 	}
 }
 
-func (c *prometheusClient) QueryRange(query string, start, end time.Time, step time.Duration) (v1.Warnings, model.Matrix, error) {
+func (c *prometheusClient) QueryRange(query string, start, end time.Time, step time.Duration) (model.Matrix, v1.Warnings, error) {
 	var matrix model.Matrix
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -60,14 +61,24 @@ func (c *prometheusClient) QueryRange(query string, start, end time.Time, step t
 		Step:  step,
 	}, v1.WithTimeout(120*time.Second))
 	if err != nil {
-		return warnings, matrix, err
+		return matrix, warnings, err
 	}
 
 	switch result.Type() {
 	case model.ValMatrix:
 		matrix := result.(model.Matrix)
-		return warnings, matrix, nil
+		return matrix, warnings, nil
 	default:
-		return warnings, matrix, fmt.Errorf("unknown result type: %s", result.Type())
+		return matrix, warnings, fmt.Errorf("unknown result type: %s", result.Type())
 	}
+}
+
+func (c *prometheusClient) Series(query string, start, end time.Time, limit uint64) ([]model.LabelSet, v1.Warnings, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	series, warnings, err := c.v1api.Series(ctx, []string{query}, start, end, v1.WithTimeout(60*time.Second), v1.WithLimit(limit))
+	if err != nil {
+		return series, warnings, err
+	}
+	return series, warnings, nil
 }
