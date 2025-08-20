@@ -9,6 +9,8 @@ import (
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
+
+	"github.com/prometheus/prometheus/promql/parser"
 )
 
 type prometheusClient struct {
@@ -16,9 +18,9 @@ type prometheusClient struct {
 }
 
 type Client interface {
-	Query(query string) (v1.Warnings, model.Vector, error)
-	QueryRange(query string, start, end time.Time, step time.Duration) (model.Matrix, v1.Warnings, error)
-	Series(query string, start, end time.Time, limit uint64) ([]model.LabelSet, v1.Warnings, error)
+	Query(query string, timeout time.Duration) (v1.Warnings, model.Vector, error)
+	QueryRange(query string, start, end time.Time, step time.Duration, timeout time.Duration) (model.Matrix, v1.Warnings, error)
+	Series(query string, start, end time.Time, limit uint64, timeout time.Duration) ([]model.LabelSet, v1.Warnings, error)
 }
 
 func NewClient(url string) Client {
@@ -33,11 +35,11 @@ func NewClient(url string) Client {
 	return &prometheusClient{v1api: v1api}
 }
 
-func (c *prometheusClient) Query(query string) (v1.Warnings, model.Vector, error) {
+func (c *prometheusClient) Query(query string, timeout time.Duration) (v1.Warnings, model.Vector, error) {
 	var vector model.Vector
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	result, warnings, err := c.v1api.Query(ctx, query, time.Now(), v1.WithTimeout(5*time.Second))
+	result, warnings, err := c.v1api.Query(ctx, query, time.Now(), v1.WithTimeout(timeout))
 	if err != nil {
 		return warnings, vector, err
 	}
@@ -51,15 +53,15 @@ func (c *prometheusClient) Query(query string) (v1.Warnings, model.Vector, error
 	}
 }
 
-func (c *prometheusClient) QueryRange(query string, start, end time.Time, step time.Duration) (model.Matrix, v1.Warnings, error) {
+func (c *prometheusClient) QueryRange(query string, start, end time.Time, step time.Duration, timeout time.Duration) (model.Matrix, v1.Warnings, error) {
 	var matrix model.Matrix
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	result, warnings, err := c.v1api.QueryRange(ctx, query, v1.Range{
 		Start: start,
 		End:   end,
 		Step:  step,
-	}, v1.WithTimeout(120*time.Second))
+	}, v1.WithTimeout(timeout))
 	if err != nil {
 		return matrix, warnings, err
 	}
@@ -73,12 +75,20 @@ func (c *prometheusClient) QueryRange(query string, start, end time.Time, step t
 	}
 }
 
-func (c *prometheusClient) Series(query string, start, end time.Time, limit uint64) ([]model.LabelSet, v1.Warnings, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+func (c *prometheusClient) Series(query string, start, end time.Time, limit uint64, timeout time.Duration) ([]model.LabelSet, v1.Warnings, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	series, warnings, err := c.v1api.Series(ctx, []string{query}, start, end, v1.WithTimeout(60*time.Second), v1.WithLimit(limit))
+	series, warnings, err := c.v1api.Series(ctx, []string{query}, start, end, v1.WithTimeout(timeout), v1.WithLimit(limit))
 	if err != nil {
 		return series, warnings, err
 	}
 	return series, warnings, nil
+}
+
+func FormatQuery(query string) string {
+	ast, err := parser.ParseExpr(query)
+	if err != nil {
+		return query
+	}
+	return ast.Pretty(0)
 }

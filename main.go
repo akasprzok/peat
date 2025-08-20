@@ -8,24 +8,33 @@ import (
 	"github.com/akasprzok/peat/internal/charts"
 	"github.com/akasprzok/peat/internal/prometheus"
 	"github.com/alecthomas/kong"
+	"github.com/prometheus/common/model"
 	"gopkg.in/yaml.v2"
 )
 
 var cli struct {
-	Query      QueryCmd      `cmd:"" help:"Instant Query."`
-	QueryRange QueryRangeCmd `cmd:"" help:"Range Query."`
-	Series     SeriesCmd     `cmd:"" help:"Get series for matches."`
+	Timeout time.Duration `help:"Timeout for Prometheus queries." default:"60s"`
+
+	Query       QueryCmd       `cmd:"" help:"Instant Query."`
+	QueryRange  QueryRangeCmd  `cmd:"" help:"Range Query."`
+	Series      SeriesCmd      `cmd:"" help:"Get series for matches."`
+	FormatQuery FormatQueryCmd `cmd:"" help:"Format query."`
+}
+
+type Context struct {
+	Timeout time.Duration
 }
 
 type QueryCmd struct {
 	PrometheusURL string `help:"URL of the Prometheus endpoint." env:"PROMETHEUS_URL" name:"prometheus-url"`
 	Query         string `arg:"" name:"query" help:"Query to run." required:"true"`
+	Output        string `name:"output" short:"o" help:"Output format." default:"graph" enum:"graph,json,yaml"`
 }
 
-func (q *QueryCmd) Run() error {
+func (q *QueryCmd) Run(ctx *Context) error {
 	charter := charts.NewNtCharts()
 	prometheusClient := prometheus.NewClient(cli.Query.PrometheusURL)
-	warnings, vector, err := prometheusClient.Query(cli.Query.Query)
+	warnings, vector, err := prometheusClient.Query(cli.Query.Query, ctx.Timeout)
 	if err != nil {
 		fmt.Printf("Error querying Prometheus: %v\n", err)
 	}
@@ -33,11 +42,38 @@ func (q *QueryCmd) Run() error {
 		fmt.Printf("Warnings: %v\n", warnings)
 	}
 	if len(vector) > 0 {
-		charter.PrintQuery(vector)
+		switch q.Output {
+		case "graph":
+			charter.PrintQuery(vector)
+		case "json":
+			json, err := toJSON(vector)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(json))
+		case "yaml":
+			yaml, err := yaml.Marshal(vector)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(yaml))
+		}
 	} else {
 		fmt.Println("No Data")
 	}
 	return nil
+}
+
+func toJSON(vector model.Vector) ([]byte, error) {
+	jsonData := make([]map[string]interface{}, 0)
+	for _, sample := range vector {
+		jsonData = append(jsonData, map[string]interface{}{
+			"metric":    sample.Metric,
+			"value":     sample.Value,
+			"timestamp": sample.Timestamp.Unix(),
+		})
+	}
+	return json.MarshalIndent(jsonData, "", "  ")
 }
 
 type QueryRangeCmd struct {
@@ -46,12 +82,12 @@ type QueryRangeCmd struct {
 	Range         time.Duration `name:"range" help:"Range to query." default:"1h"`
 }
 
-func (q *QueryRangeCmd) Run() error {
+func (q *QueryRangeCmd) Run(ctx *Context) error {
 	charter := charts.NewNtCharts()
 	prometheusClient := prometheus.NewClient(q.PrometheusURL)
 	end := time.Now()
 	start := end.Add(-q.Range)
-	matrix, warnings, err := prometheusClient.QueryRange(cli.QueryRange.Query, start, end, 1*time.Minute)
+	matrix, warnings, err := prometheusClient.QueryRange(cli.QueryRange.Query, start, end, 1*time.Minute, ctx.Timeout)
 	if err != nil {
 		fmt.Printf("Error querying Prometheus: %v\n", err)
 	}
@@ -72,14 +108,14 @@ type SeriesCmd struct {
 	Match         string        `arg:"" name:"match" help:"Matches to query." required:"true"`
 	Range         time.Duration `name:"range" help:"Range to query." default:"1h"`
 	Limit         uint64        `arg:"" name:"limit" help:"Limit the number of series." default:"100"`
-	Output        string        `name:"output" help:"Output format." default:"json" enum:"json,yaml"`
+	Output        string        `name:"output" short:"o" help:"Output format." default:"json" enum:"json,yaml"`
 }
 
-func (s *SeriesCmd) Run() error {
+func (s *SeriesCmd) Run(ctx *Context) error {
 	prometheusClient := prometheus.NewClient(s.PrometheusURL)
 	end := time.Now()
 	start := end.Add(-s.Range)
-	series, warnings, err := prometheusClient.Series(cli.Series.Match, start, end, cli.Series.Limit)
+	series, warnings, err := prometheusClient.Series(cli.Series.Match, start, end, cli.Series.Limit, ctx.Timeout)
 	if err != nil {
 		fmt.Printf("Error querying Prometheus: %v\n", err)
 		return err
@@ -108,10 +144,19 @@ func (s *SeriesCmd) Run() error {
 	return nil
 }
 
+type FormatQueryCmd struct {
+	Query string `arg:"" name:"query" help:"Query to format." required:"true"`
+}
+
+func (f *FormatQueryCmd) Run(_ *Context) error {
+	fmt.Println(prometheus.FormatQuery(f.Query))
+	return nil
+}
+
 func main() {
 	// create new time series chart
 	ctx := kong.Parse(&cli)
 	// Call the Run() method of the selected parsed command.
-	err := ctx.Run()
+	err := ctx.Run(&Context{Timeout: cli.Timeout})
 	ctx.FatalIfErrorf(err)
 }
