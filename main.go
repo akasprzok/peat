@@ -52,7 +52,7 @@ func (q *QueryCmd) Run(ctx *Context) error {
 			}
 			fmt.Println(string(json))
 		case "yaml":
-			yaml, err := yaml.Marshal(vector)
+			yaml, err := toYAML(vector)
 			if err != nil {
 				return err
 			}
@@ -64,16 +64,24 @@ func (q *QueryCmd) Run(ctx *Context) error {
 	return nil
 }
 
-func toJSON(vector model.Vector) ([]byte, error) {
-	jsonData := make([]map[string]interface{}, 0)
+func massageVector(vector model.Vector) []map[string]interface{} {
+	data := make([]map[string]interface{}, 0)
 	for _, sample := range vector {
-		jsonData = append(jsonData, map[string]interface{}{
+		data = append(data, map[string]interface{}{
 			"metric":    sample.Metric,
 			"value":     sample.Value,
 			"timestamp": sample.Timestamp.Unix(),
 		})
 	}
-	return json.MarshalIndent(jsonData, "", "  ")
+	return data
+}
+
+func toJSON(vector model.Vector) ([]byte, error) {
+	return json.MarshalIndent(massageVector(vector), "", "  ")
+}
+
+func toYAML(vector model.Vector) ([]byte, error) {
+	return yaml.Marshal(massageVector(vector))
 }
 
 type QueryRangeCmd struct {
