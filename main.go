@@ -76,6 +76,24 @@ func massageVector(vector model.Vector) []map[string]interface{} {
 	return data
 }
 
+func massageMatrix(matrix model.Matrix) []map[string]interface{} {
+	data := make([]map[string]interface{}, 0)
+	for _, sample := range matrix {
+		values := make([]map[string]interface{}, 0)
+		for _, value := range sample.Values {
+			values = append(values, map[string]interface{}{
+				"timestamp": value.Timestamp.Unix(),
+				"value":     value.Value,
+			})
+		}
+		data = append(data, map[string]interface{}{
+			"metric": sample.Metric,
+			"values": values,
+		})
+	}
+	return data
+}
+
 func toJSON(vector model.Vector) ([]byte, error) {
 	return json.MarshalIndent(massageVector(vector), "", "  ")
 }
@@ -84,10 +102,19 @@ func toYAML(vector model.Vector) ([]byte, error) {
 	return yaml.Marshal(massageVector(vector))
 }
 
+func matrixToJSON(matrix model.Matrix) ([]byte, error) {
+	return json.MarshalIndent(massageMatrix(matrix), "", "  ")
+}
+
+func matrixToYAML(matrix model.Matrix) ([]byte, error) {
+	return yaml.Marshal(massageMatrix(matrix))
+}
+
 type QueryRangeCmd struct {
 	PrometheusURL string        `help:"URL of the Prometheus endpoint." env:"PROMETHEUS_URL" name:"prometheus-url"`
 	Query         string        `arg:"" name:"query" help:"Query to run." required:"true"`
 	Range         time.Duration `name:"range" help:"Range to query." default:"1h"`
+	Output        string        `name:"output" short:"o" help:"Output format." default:"graph" enum:"graph,json,yaml"`
 }
 
 func (q *QueryRangeCmd) Run(ctx *Context) error {
@@ -102,9 +129,23 @@ func (q *QueryRangeCmd) Run(ctx *Context) error {
 	if len(warnings) > 0 {
 		fmt.Printf("Warnings: %v\n", warnings)
 	}
-
 	if len(matrix) > 0 {
-		charter.PrintQueryRange(matrix)
+		switch q.Output {
+		case "graph":
+			charter.PrintQueryRange(matrix)
+		case "json":
+			json, err := matrixToJSON(matrix)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(json))
+		case "yaml":
+			yaml, err := matrixToYAML(matrix)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(yaml))
+		}
 	} else {
 		fmt.Println("No Data")
 	}
