@@ -14,54 +14,44 @@ import (
 type QueryRangeCmd struct {
 	PrometheusURL string        `help:"URL of the Prometheus endpoint." env:"PROMETHEUS_URL" name:"prometheus-url"`
 	Query         string        `arg:"" name:"query" help:"Query to run." required:"true"`
-	Range         time.Duration `name:"range" help:"Range to query." default:"1h"`
+	Range         time.Duration `name:"range" short:"r" help:"Range to query." default:"1h"`
 	Output        string        `name:"output" short:"o" help:"Output format." default:"graph" enum:"graph,json,yaml"`
 }
 
 func (q *QueryRangeCmd) Run(ctx *Context) error {
-	charter := charts.NewNtCharts()
 	prometheusClient := prometheus.NewClient(q.PrometheusURL)
 	end := time.Now()
 	start := end.Add(-q.Range)
 	matrix, warnings, err := prometheusClient.QueryRange(q.Query, start, end, 1*time.Minute, ctx.Timeout)
-	if err != nil {
-		fmt.Printf("Error querying Prometheus: %v\n", err)
-	}
-	if len(warnings) > 0 {
-		fmt.Printf("Warnings: %v\n", warnings)
-	}
-	if len(matrix) > 0 {
-		switch q.Output {
-		case "graph":
-			charter.PrintQueryRange(matrix)
-		case "json":
-			json, err := matrixToJSON(matrix)
-			if err != nil {
-				return err
-			}
-			fmt.Println(string(json))
-		case "yaml":
-			yaml, err := matrixToYAML(matrix)
-			if err != nil {
-				return err
-			}
-			fmt.Println(string(yaml))
+	switch q.Output {
+	case "graph":
+		if err != nil {
+			return err
 		}
-	} else {
-		fmt.Println("No Data")
+		if len(warnings) > 0 {
+			fmt.Printf("Warnings: %v\n", warnings)
+		}
+		charter := charts.NewNtCharts()
+		charter.PrintQueryRange(matrix)
+	case "json":
+		output := formatMatrix(matrix, warnings, err)
+		json, err := json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(json))
+	case "yaml":
+		output := formatMatrix(matrix, warnings, err)
+		yaml, err := yaml.Marshal(output)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(yaml))
 	}
 	return nil
 }
 
-func matrixToJSON(matrix model.Matrix) ([]byte, error) {
-	return json.MarshalIndent(massageMatrix(matrix), "", "  ")
-}
-
-func matrixToYAML(matrix model.Matrix) ([]byte, error) {
-	return yaml.Marshal(massageMatrix(matrix))
-}
-
-func massageMatrix(matrix model.Matrix) []map[string]interface{} {
+func formatMatrix(matrix model.Matrix, warnings []string, err error) map[string]interface{} {
 	data := make([]map[string]interface{}, 0)
 	for _, sample := range matrix {
 		values := make([]map[string]interface{}, 0)
@@ -76,5 +66,17 @@ func massageMatrix(matrix model.Matrix) []map[string]interface{} {
 			"values": values,
 		})
 	}
-	return data
+
+	if err != nil {
+		return map[string]interface{}{
+			"data":     data,
+			"warnings": warnings,
+			"error":    err.Error(),
+		}
+	}
+	return map[string]interface{}{
+		"data":     data,
+		"warnings": warnings,
+		"error":    nil,
+	}
 }

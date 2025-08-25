@@ -11,33 +11,35 @@ import (
 )
 
 type QueryCmd struct {
-	PrometheusURL string `help:"URL of the Prometheus endpoint." env:"PROMETHEUS_URL" name:"prometheus-url"`
+	PrometheusURL string `help:"URL of the Prometheus endpoint." short:"p" env:"PROMETHEUS_URL" name:"prometheus-url"`
 	Query         string `arg:"" name:"query" help:"Query to run." required:"true"`
 	Output        string `name:"output" short:"o" help:"Output format." default:"graph" enum:"graph,json,yaml"`
 }
 
 func (q *QueryCmd) Run(ctx *Context) error {
-	charter := charts.NewNtCharts()
 	prometheusClient := prometheus.NewClient(q.PrometheusURL)
 	warnings, vector, err := prometheusClient.Query(q.Query, ctx.Timeout)
-	if err != nil {
-		fmt.Printf("Error querying Prometheus: %v\n", err)
-	}
-	if len(warnings) > 0 {
-		fmt.Printf("Warnings: %v\n", warnings)
-	}
 	if len(vector) > 0 {
 		switch q.Output {
 		case "graph":
+			if err != nil {
+				return err
+			}
+			if len(warnings) > 0 {
+				fmt.Printf("Warnings: %v\n", warnings)
+			}
+			charter := charts.NewNtCharts()
 			charter.PrintQuery(vector)
 		case "json":
-			json, err := toJSON(vector)
+			output := formatVector(vector, warnings, err)
+			json, err := json.MarshalIndent(output, "", "  ")
 			if err != nil {
 				return err
 			}
 			fmt.Println(string(json))
 		case "yaml":
-			yaml, err := toYAML(vector)
+			output := formatVector(vector, warnings, err)
+			yaml, err := yaml.Marshal(output)
 			if err != nil {
 				return err
 			}
@@ -49,7 +51,7 @@ func (q *QueryCmd) Run(ctx *Context) error {
 	return nil
 }
 
-func massageVector(vector model.Vector) []map[string]interface{} {
+func formatVector(vector model.Vector, warnings []string, err error) map[string]interface{} {
 	data := make([]map[string]interface{}, 0)
 	for _, sample := range vector {
 		data = append(data, map[string]interface{}{
@@ -58,13 +60,17 @@ func massageVector(vector model.Vector) []map[string]interface{} {
 			"timestamp": sample.Timestamp.Unix(),
 		})
 	}
-	return data
-}
 
-func toJSON(vector model.Vector) ([]byte, error) {
-	return json.MarshalIndent(massageVector(vector), "", "  ")
-}
-
-func toYAML(vector model.Vector) ([]byte, error) {
-	return yaml.Marshal(massageVector(vector))
+	if err != nil {
+		return map[string]interface{}{
+			"data":     data,
+			"warnings": warnings,
+			"error":    err.Error(),
+		}
+	}
+	return map[string]interface{}{
+		"data":     data,
+		"warnings": warnings,
+		"error":    nil,
+	}
 }
