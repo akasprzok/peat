@@ -70,37 +70,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 
+	m.table, cmd = m.table.Update(msg)
+	cmds = append(cmds, cmd)
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// global
-		if msg.String() == "ctrl+c" {
-			cmds = append(cmds, tea.Quit)
-
-			return m, tea.Batch(cmds...)
-		}
-		// event to filter
-		if m.filterTextInput.Focused() {
-			if msg.String() == "enter" {
-				m.filterTextInput.Blur()
-			} else {
-				m.filterTextInput, _ = m.filterTextInput.Update(msg)
-			}
-			m.table = m.table.WithFilterInput(m.filterTextInput)
-
-			return m, tea.Batch(cmds...)
-		}
-
-		// others component
 		switch msg.String() {
-		case "/":
-			m.filterTextInput.Focus()
-		case "q":
+		case "ctrl+c", "q":
 			cmds = append(cmds, tea.Quit)
-			return m, tea.Batch(cmds...)
-		default:
-			m.table, cmd = m.table.Update(msg)
-			cmds = append(cmds, cmd)
 		}
+
 	}
 
 	return m, tea.Batch(cmds...)
