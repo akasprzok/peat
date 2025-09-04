@@ -7,7 +7,7 @@ type Context struct {
 }
 
 var Cli struct {
-	Timeout time.Duration `help:"Timeout for Prometheus queries." default:"60s"`
+	Timeout time.Duration `help:"Timeout for Prometheus queries." short:"t" default:"60s"`
 
 	Query       QueryCmd       `cmd:"" help:"Instant Query."`
 	QueryRange  QueryRangeCmd  `cmd:"" help:"Range Query."`

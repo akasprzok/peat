@@ -10,7 +10,7 @@ import (
 )
 
 type SeriesCmd struct {
-	PrometheusURL string        `help:"URL of the Prometheus endpoint." env:"PROMETHEUS_URL" name:"prometheus-url"`
+	PrometheusURL string        `help:"URL of the Prometheus endpoint." env:"PEAT_PROMETHEUS_URL" name:"prometheus-url"`
 	Match         string        `arg:"" name:"match" help:"Matches to query." required:"true"`
 	Range         time.Duration `name:"range" help:"Range to query." default:"1h"`
 	Limit         uint64        `arg:"" name:"limit" help:"Limit the number of series." default:"100"`

@@ -12,7 +12,7 @@ import (
 )
 
 type QueryRangeCmd struct {
-	PrometheusURL string        `help:"URL of the Prometheus endpoint." env:"PROMETHEUS_URL" name:"prometheus-url"`
+	PrometheusURL string        `help:"URL of the Prometheus endpoint." env:"PEAT_PROMETHEUS_URL" name:"prometheus-url"`
 	Query         string        `arg:"" name:"query" help:"Query to run." required:"true"`
 	Range         time.Duration `name:"range" short:"r" help:"Range to query." default:"1h"`
 	Output        string        `name:"output" short:"o" help:"Output format." default:"graph" enum:"graph,json,yaml"`

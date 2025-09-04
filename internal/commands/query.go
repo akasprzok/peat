@@ -13,9 +13,9 @@ import (
 )
 
 type QueryCmd struct {
-	PrometheusURL string `help:"URL of the Prometheus endpoint." short:"p" env:"PROMETHEUS_URL" name:"prometheus-url"`
+	PrometheusURL string `help:"URL of the Prometheus endpoint." short:"p" env:"PEAT_PROMETHEUS_URL" name:"prometheus-url"`
 	Query         string `arg:"" name:"query" help:"Query to run." required:"true"`
-	Output        string `name:"output" short:"o" help:"Output format." default:"graph" enum:"graph,table,json,yaml"`
+	Output        string `name:"output" short:"o" help:"Output format. Choices are: graph, table, json, yaml" default:"graph" enum:"graph,table,json,yaml"`
 }
 
 func (q *QueryCmd) Run(ctx *Context) error {
