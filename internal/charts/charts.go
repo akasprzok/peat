@@ -10,7 +10,6 @@ import (
 
 type Charter interface {
 	PrintQuery(model.Vector)
-	PrintQueryRange(model.Matrix)
 }
 
 type ntCharts struct{}
@@ -27,15 +26,4 @@ func (*ntCharts) PrintQuery(vector model.Vector) {
 	}
 	bc := Barchart(vector, width)
 	fmt.Println(bc)
-}
-
-func (*ntCharts) PrintQueryRange(matrix model.Matrix) {
-	width, _, err := term.GetSize(int(os.Stdin.Fd()))
-	if err != nil {
-		fmt.Printf("Error getting terminal size: %v\n", err)
-		return
-	}
-	chart, legend := TimeseriesSplit(matrix, width)
-	fmt.Println(chart)
-	fmt.Println(legend)
 }

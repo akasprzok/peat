@@ -1,10 +1,8 @@
 package charts
 
 import (
-	"fmt"
 	"math"
 	"strconv"
-	"strings"
 
 	"github.com/NimbleMarkets/ntcharts/canvas/runes"
 	"github.com/NimbleMarkets/ntcharts/linechart/timeserieslinechart"
@@ -21,8 +19,14 @@ var axisStyle = lipgloss.NewStyle().
 var labelStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("6")) // cyan
 
-// TimeseriesSplit returns the chart and legend separately
-func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend string) {
+// LegendEntry represents a single entry in the time series legend
+type LegendEntry struct {
+	Metric     string
+	ColorIndex int
+}
+
+// TimeseriesSplit returns the chart and legend entries separately
+func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend []LegendEntry) {
 	minYValue := model.SampleValue(math.MaxFloat64)
 	maxYValue := model.SampleValue(-math.MaxFloat64)
 	for _, stream := range matrix {
@@ -38,7 +42,7 @@ func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend strin
 
 	height := width / 8
 
-	var legendBuilder strings.Builder
+	legendEntries := make([]LegendEntry, 0, len(matrix))
 
 	lc := timeserieslinechart.New(width, height)
 	lc.AxisStyle = axisStyle
@@ -51,8 +55,11 @@ func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend strin
 
 	for i, stream := range matrix {
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
-		legendBuilder.WriteString("\n")
-		legendBuilder.WriteString(style.Render(fmt.Sprintf("%c %s", runes.FullBlock, stream.Metric.String())))
+		// Add to legend entries
+		legendEntries = append(legendEntries, LegendEntry{
+			Metric:     stream.Metric.String(),
+			ColorIndex: i,
+		})
 		lc.SetDataSetStyle(stream.Metric.String(), style)
 		for _, sample := range stream.Values {
 			point := timeserieslinechart.TimePoint{
@@ -65,5 +72,5 @@ func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend strin
 
 	lc.DrawBrailleAll()
 
-	return lc.View(), legendBuilder.String()
+	return lc.View(), legendEntries
 }

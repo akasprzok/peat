@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,7 +45,7 @@ type QueryRangeModel struct {
 	width         int
 	height        int
 	chartContent  string
-	legendContent string
+	legendEntries []charts.LegendEntry
 	quitting      bool
 }
 
@@ -141,7 +142,7 @@ func (m QueryRangeModel) handleRangeGraphOutput() (tea.Model, tea.Cmd) {
 	m.state = stateRangeSuccess
 	// Get terminal width directly
 	chartWidth := m.width - 6 // Account for borders and padding
-	m.chartContent, m.legendContent = charts.TimeseriesSplit(m.matrix, chartWidth)
+	m.chartContent, m.legendEntries = charts.TimeseriesSplit(m.matrix, chartWidth)
 	return m, nil
 }
 
@@ -193,7 +194,9 @@ func (m QueryRangeModel) View() string {
 
 			// Style the chart and legend
 			styledChart := chartStyle.Render(m.chartContent)
-			styledLegend := legendStyle.Render("Legend:" + m.legendContent)
+			// Format legend entries
+			legendText := m.formatLegendEntries(5)
+			styledLegend := legendStyle.Render(legendText)
 
 			// Join them vertically (legend below chart)
 			layout := lipgloss.JoinVertical(
@@ -229,6 +232,38 @@ func (m QueryRangeModel) View() string {
 				s.WriteString("\n")
 			}
 		}
+	}
+
+	return s.String()
+}
+
+// formatLegendEntries formats the legend entries as a simple list with max rows
+func (m QueryRangeModel) formatLegendEntries(maxRows int) string {
+	if len(m.legendEntries) == 0 {
+		return "No data"
+	}
+
+	var s strings.Builder
+	s.WriteString("Legend:\n\n")
+
+	// Show up to maxRows entries
+	displayCount := maxRows
+	if len(m.legendEntries) < displayCount {
+		displayCount = len(m.legendEntries)
+	}
+
+	for i := 0; i < displayCount; i++ {
+		entry := m.legendEntries[i]
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(entry.ColorIndex)))
+		s.WriteString(style.Render("█ "))
+		s.WriteString(entry.Metric)
+		s.WriteString("\n")
+	}
+
+	// Add "and X more..." if there are more series
+	if len(m.legendEntries) > maxRows {
+		remaining := len(m.legendEntries) - maxRows
+		s.WriteString(fmt.Sprintf("\n... and %d more series", remaining))
 	}
 
 	return s.String()
