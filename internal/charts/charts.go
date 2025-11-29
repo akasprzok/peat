@@ -35,6 +35,7 @@ func (*ntCharts) PrintQueryRange(matrix model.Matrix) {
 		fmt.Printf("Error getting terminal size: %v\n", err)
 		return
 	}
-	bc := Timeseries(matrix, width)
-	fmt.Println(bc)
+	chart, legend := TimeseriesSplit(matrix, width)
+	fmt.Println(chart)
+	fmt.Println(legend)
 }

@@ -3,7 +3,6 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
-	"golang.org/x/term"
 	"gopkg.in/yaml.v2"
 )
 
@@ -142,18 +140,7 @@ func (m QueryRangeModel) handleRangeOutputFormat() (tea.Model, tea.Cmd) {
 func (m QueryRangeModel) handleRangeGraphOutput() (tea.Model, tea.Cmd) {
 	m.state = stateRangeSuccess
 	// Get terminal width directly
-	width := m.width
-	if width == 0 {
-		// Try to get actual terminal width
-		termWidth, _, err := term.GetSize(int(os.Stdout.Fd()))
-		if err == nil {
-			width = termWidth
-		} else {
-			width = 80 // fallback default
-		}
-	}
-	// Use full width minus border padding for the chart
-	chartWidth := width - 6 // Account for borders and padding
+	chartWidth := m.width - 6 // Account for borders and padding
 	m.chartContent, m.legendContent = charts.TimeseriesSplit(m.matrix, chartWidth)
 	return m, nil
 }
@@ -210,7 +197,7 @@ func (m QueryRangeModel) View() string {
 
 			// Join them vertically (legend below chart)
 			layout := lipgloss.JoinVertical(
-				lipgloss.Left,
+				lipgloss.Bottom,
 				styledChart,
 				styledLegend,
 			)

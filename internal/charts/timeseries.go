@@ -21,11 +21,6 @@ var axisStyle = lipgloss.NewStyle().
 var labelStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("6")) // cyan
 
-func Timeseries(matrix model.Matrix, width int) string {
-	chart, legend := TimeseriesSplit(matrix, width)
-	return chart + legend
-}
-
 // TimeseriesSplit returns the chart and legend separately
 func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend string) {
 	minYValue := model.SampleValue(math.MaxFloat64)
