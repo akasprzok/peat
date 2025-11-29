@@ -59,33 +59,48 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 	lc.SetStyle(lineStyle)
 	lc.SetLineStyle(runes.ThinLineStyle) // ThinLineStyle replaces default linechart arcline rune style
 
+	// Build legend entries and draw all series in their natural order
 	for i, stream := range matrix {
-		var style lipgloss.Style
-
-		// Determine if this series should be greyed out
-		if selectedIndex == -1 {
-			// No selection, show all in color
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
-		} else if i == selectedIndex {
-			// This is the selected series, show in full color
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
-		} else {
-			// Not selected, grey it out
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-		}
-
-		// Add to legend entries
 		legendEntries = append(legendEntries, LegendEntry{
 			Metric:     stream.Metric.String(),
 			ColorIndex: i,
 		})
-		lc.SetDataSetStyle(stream.Metric.String(), style)
+
+		var style lipgloss.Style
+		// Determine styling based on selection state
+		if selectedIndex == -1 {
+			// No selection, show all in their original colors
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
+			lc.SetDataSetStyle(stream.Metric.String(), style)
+			for _, sample := range stream.Values {
+				point := timeserieslinechart.TimePoint{
+					Time:  sample.Timestamp.Time(),
+					Value: float64(sample.Value),
+				}
+				lc.PushDataSet(stream.Metric.String(), point)
+			}
+		} else {
+			// Not selected, grey it out
+			// style = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		}
+
+	}
+
+	// If a series is selected, draw it a second time to ensure it appears on top
+	if selectedIndex >= 0 && selectedIndex < len(matrix) {
+		stream := matrix[selectedIndex]
+		selectedStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("231")) // bright white for high contrast
+
+		// Use a temporary unique name to draw it again
+		tempName := stream.Metric.String() + "_selected"
+		lc.SetDataSetStyle(tempName, selectedStyle)
 		for _, sample := range stream.Values {
 			point := timeserieslinechart.TimePoint{
 				Time:  sample.Timestamp.Time(),
 				Value: float64(sample.Value),
 			}
-			lc.PushDataSet(stream.Metric.String(), point)
+			lc.PushDataSet(tempName, point)
 		}
 	}
 
