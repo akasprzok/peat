@@ -10,7 +10,6 @@ import (
 )
 
 func Barchart(vector model.Vector, width int) string {
-
 	barData := make([]barchart.BarData, 0)
 	for i, sample := range vector {
 		barData = append(barData, barchart.BarData{
@@ -25,5 +24,4 @@ func Barchart(vector model.Vector, width int) string {
 	bc.Draw()
 
 	return bc.View()
-
 }

@@ -2,6 +2,11 @@
 
 > A beautiful CLI for querying Prometheus with terminal-native visualizations
 
+[![CI](https://github.com/akasprzok/peat/workflows/CI/badge.svg)](https://github.com/akasprzok/peat/actions?query=workflow%3ACI)
+[![Security](https://github.com/akasprzok/peat/workflows/Security/badge.svg)](https://github.com/akasprzok/peat/actions?query=workflow%3ASecurity)
+[![Code Quality](https://github.com/akasprzok/peat/workflows/Code%20Quality/badge.svg)](https://github.com/akasprzok/peat/actions?query=workflow%3A%22Code+Quality%22)
+[![Go Report Card](https://goreportcard.com/badge/github.com/akasprzok/peat)](https://goreportcard.com/report/github.com/akasprzok/peat)
+
 Peat is a command-line tool that makes querying Prometheus metrics easy and visually appealing. It provides instant visualization of metrics with bar charts and time series graphs rendered directly in your terminal.
 
 ## Features
