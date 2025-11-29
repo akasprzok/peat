@@ -1,15 +1,10 @@
 package commands
 
 import (
-	"encoding/json"
-	"fmt"
-
-	"github.com/akasprzok/peat/internal/charts"
-	"github.com/akasprzok/peat/internal/prometheus"
-	"github.com/akasprzok/peat/internal/tables"
-	tea "github.com/charmbracelet/bubbletea"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
-	"gopkg.in/yaml.v2"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type QueryCmd struct {
@@ -19,54 +14,25 @@ type QueryCmd struct {
 }
 
 func (q *QueryCmd) Run(ctx *Context) error {
-	prometheusClient := prometheus.NewClient(q.PrometheusURL)
-	warnings, vector, err := prometheusClient.Query(q.Query, ctx.Timeout)
-	switch q.Output {
-	case "graph":
-		if err != nil {
-			return err
-		}
-		if len(warnings) > 0 {
-			fmt.Printf("Warnings: %v\n", warnings)
-		}
-		charter := charts.NewNtCharts()
-		charter.PrintQuery(vector)
-	case "table":
-		if err != nil {
-			return err
-		}
-		if len(warnings) > 0 {
-			fmt.Printf("Warnings: %v\n", warnings)
-		}
-		table, err := tables.PrintQuery(vector)
-		if err != nil {
-			return err
-		}
-		p := tea.NewProgram(table)
-		_, err = p.Run()
-		if err != nil {
-			return err
-		}
-		fmt.Println(table.View())
-	case "json":
-		output := formatVector(vector, warnings, err)
-		jsonBytes, err := json.MarshalIndent(output, "", "  ")
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(jsonBytes))
-	case "yaml":
-		output := formatVector(vector, warnings, err)
-		yamlBytes, err := yaml.Marshal(output)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(yamlBytes))
+	queryModel := NewQueryModel(q.PrometheusURL, q.Query, q.Output, ctx.Timeout)
+
+	p := tea.NewProgram(queryModel)
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
 	}
+
+	// Extract the final model to check for errors
+	if qm, ok := finalModel.(QueryModel); ok {
+		if qm.err != nil {
+			return qm.err
+		}
+	}
+
 	return nil
 }
 
-func formatVector(vector model.Vector, warnings []string, err error) map[string]any {
+func formatVector(vector model.Vector, warnings v1.Warnings, err error) map[string]any {
 	data := make([]map[string]any, 0)
 	for _, sample := range vector {
 		data = append(data, map[string]any{

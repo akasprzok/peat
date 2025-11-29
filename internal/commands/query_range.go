@@ -1,14 +1,12 @@
 package commands
 
 import (
-	"encoding/json"
-	"fmt"
 	"time"
 
-	"github.com/akasprzok/peat/internal/charts"
-	"github.com/akasprzok/peat/internal/prometheus"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
-	"gopkg.in/yaml.v2"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type QueryRangeCmd struct {
@@ -19,39 +17,25 @@ type QueryRangeCmd struct {
 }
 
 func (q *QueryRangeCmd) Run(ctx *Context) error {
-	prometheusClient := prometheus.NewClient(q.PrometheusURL)
-	end := time.Now()
-	start := end.Add(-q.Range)
-	matrix, warnings, err := prometheusClient.QueryRange(q.Query, start, end, 1*time.Minute, ctx.Timeout)
-	switch q.Output {
-	case "graph":
-		if err != nil {
-			return err
-		}
-		if len(warnings) > 0 {
-			fmt.Printf("Warnings: %v\n", warnings)
-		}
-		charter := charts.NewNtCharts()
-		charter.PrintQueryRange(matrix)
-	case "json":
-		output := formatMatrix(matrix, warnings, err)
-		jsonBytes, err := json.MarshalIndent(output, "", "  ")
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(jsonBytes))
-	case "yaml":
-		output := formatMatrix(matrix, warnings, err)
-		yamlBytes, err := yaml.Marshal(output)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(yamlBytes))
+	queryRangeModel := NewQueryRangeModel(q.PrometheusURL, q.Query, q.Range, q.Output, ctx.Timeout)
+
+	p := tea.NewProgram(queryRangeModel)
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
 	}
+
+	// Extract the final model to check for errors
+	if qrm, ok := finalModel.(QueryRangeModel); ok {
+		if qrm.err != nil {
+			return qrm.err
+		}
+	}
+
 	return nil
 }
 
-func formatMatrix(matrix model.Matrix, warnings []string, err error) map[string]any {
+func formatMatrix(matrix model.Matrix, warnings v1.Warnings, err error) map[string]any {
 	data := make([]map[string]any, 0)
 	for _, sample := range matrix {
 		values := make([]map[string]any, 0)
