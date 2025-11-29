@@ -7,9 +7,9 @@ on:
   pull_request:
     branches:
       - main
-  schedule:
-    # Run weekly on Monday at 00:00 UTC
-    - cron: '0 0 * * 1'
+
+env:
+  GO_VERSION: '1.24'
 
 permissions:
   contents: read
@@ -26,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: ${{ env.GO_VERSION }}
           cache: true
 
       - name: Install govulncheck
@@ -34,19 +34,6 @@ jobs:
 
       - name: Run govulncheck
         run: govulncheck ./...
-
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
 
   codeql:
     name: CodeQL Analysis

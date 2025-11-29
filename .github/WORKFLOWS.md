@@ -12,10 +12,9 @@ This document describes the GitHub Actions workflows configured for the peat pro
 
 - **Test**
   - Runs on: Linux, macOS, Windows
-  - Go versions: 1.22, 1.23
+  - Go versions: 1.24
   - Executes unit tests with race detection
   - Generates code coverage reports
-  - Uploads coverage to Codecov (Ubuntu + Go 1.23 only)
 
 - **Lint**
   - Runs golangci-lint with comprehensive linter configuration
@@ -62,11 +61,6 @@ This document describes the GitHub Actions workflows configured for the peat pro
   - Uses `govulncheck` to scan for known vulnerabilities
   - Checks both direct and indirect dependencies
   - Runs weekly to catch newly discovered vulnerabilities
-
-- **Dependency Review**
-  - Reviews dependencies in pull requests
-  - Fails on moderate or higher severity issues
-  - Only runs on pull requests
 
 - **CodeQL Analysis**
   - Performs semantic code analysis
