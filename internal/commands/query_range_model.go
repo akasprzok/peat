@@ -378,7 +378,8 @@ func (m QueryRangeModel) regenerateChart() QueryRangeModel {
 	if chartWidth <= 0 {
 		chartWidth = 80
 	}
-	m.chartContent, m.legendEntries = charts.TimeseriesSplitWithSelection(m.matrix, chartWidth, m.selectedIndex)
+	// Only regenerate the chart, keep legendEntries stable
+	m.chartContent, _ = charts.TimeseriesSplitWithSelection(m.matrix, chartWidth, m.selectedIndex)
 	return m
 }
 

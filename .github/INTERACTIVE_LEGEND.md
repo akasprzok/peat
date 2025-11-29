@@ -56,7 +56,7 @@ Press i for interactive mode, q to quit
 ### Interactive Mode (Series Selected)
 ```
 ┌────────────────────────────────────────┐
-│ Series 1: Blue (highlighted)            │
+│ Series 1: Bold White (highlighted)      │
 │ Series 2: Grey (dimmed)                 │
 │ Series 3: Grey (dimmed)                 │
 └────────────────────────────────────────┘
@@ -91,7 +91,8 @@ When navigating through the legend:
 1. The `selectedIndex` is updated based on the highlighted row
 2. The chart is regenerated using `TimeseriesSplitWithSelection(matrix, width, selectedIndex)`
 3. Non-selected series are rendered in grey (color "240")
-4. Selected series maintains its original color
+4. **Selected series is rendered in bold, bright white** (color "231") for high contrast
+5. **Selected series is drawn a second time** at the end to ensure it appears on top for better visibility
 
 ### Legend Table
 
@@ -107,6 +108,8 @@ When navigating through the legend:
 1. `internal/charts/timeseries.go`:
    - Added `TimeseriesSplitWithSelection(matrix, width, selectedIndex)` function
    - Applies grey color to non-selected series
+   - Renders selected series in bold, bright white for high contrast
+   - Draws selected series a second time at the end (on top) for better visibility
 
 2. `internal/commands/query_range_model.go`:
    - Added `legendFocused` and `selectedIndex` fields
