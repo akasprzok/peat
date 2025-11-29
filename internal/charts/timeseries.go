@@ -27,6 +27,12 @@ type LegendEntry struct {
 
 // TimeseriesSplit returns the chart and legend entries separately
 func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend []LegendEntry) {
+	return TimeseriesSplitWithSelection(matrix, width, -1)
+}
+
+// TimeseriesSplitWithSelection returns the chart and legend entries with a selected series highlighted
+// selectedIndex: -1 means no selection, all series shown normally
+func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex int) (chart string, legend []LegendEntry) {
 	minYValue := model.SampleValue(math.MaxFloat64)
 	maxYValue := model.SampleValue(-math.MaxFloat64)
 	for _, stream := range matrix {
@@ -54,7 +60,20 @@ func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend []Leg
 	lc.SetLineStyle(runes.ThinLineStyle) // ThinLineStyle replaces default linechart arcline rune style
 
 	for i, stream := range matrix {
-		style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
+		var style lipgloss.Style
+
+		// Determine if this series should be greyed out
+		if selectedIndex == -1 {
+			// No selection, show all in color
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
+		} else if i == selectedIndex {
+			// This is the selected series, show in full color
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
+		} else {
+			// Not selected, grey it out
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		}
+
 		// Add to legend entries
 		legendEntries = append(legendEntries, LegendEntry{
 			Metric:     stream.Metric.String(),

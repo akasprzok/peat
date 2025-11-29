@@ -49,6 +49,7 @@ type QueryRangeModel struct {
 	legendEntries []charts.LegendEntry
 	legendTable   teatable.Model
 	legendFocused bool
+	selectedIndex int // -1 means no selection, otherwise index of selected series
 	quitting      bool
 }
 
@@ -58,13 +59,14 @@ func NewQueryRangeModel(promURL, query string, timeRange time.Duration, output s
 	s.Style = spinnerStyle
 
 	return QueryRangeModel{
-		promClient: prometheus.NewClient(promURL),
-		query:      query,
-		timeRange:  timeRange,
-		timeout:    timeout,
-		output:     output,
-		state:      stateRangeLoading,
-		spinner:    s,
+		promClient:    prometheus.NewClient(promURL),
+		query:         query,
+		timeRange:     timeRange,
+		timeout:       timeout,
+		output:        output,
+		state:         stateRangeLoading,
+		spinner:       s,
+		selectedIndex: -1, // No selection initially
 	}
 }
 
@@ -110,30 +112,60 @@ func (m QueryRangeModel) handleRangeWindowSize(msg tea.WindowSizeMsg) QueryRange
 }
 
 func (m QueryRangeModel) handleRangeKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle global keys first
 	switch msg.String() {
 	case "q", "ctrl+c":
 		m.quitting = true
 		return m, tea.Quit
-	case "l":
-		// Toggle legend focus
+	case "i":
+		// Toggle interactive mode (legend focus)
 		if m.state == stateRangeSuccess && m.output == "graph" {
 			m.legendFocused = !m.legendFocused
 			m.legendTable = m.legendTable.Focused(m.legendFocused)
-		}
-		return m, nil
-	case "j", "down":
-		// Move down in legend if focused
-		if m.legendFocused {
-			m.legendTable = m.legendTable.PageDown()
-		}
-		return m, nil
-	case "k", "up":
-		// Move up in legend if focused
-		if m.legendFocused {
-			m.legendTable = m.legendTable.PageUp()
+			if !m.legendFocused {
+				// When exiting interactive mode, clear selection
+				m.selectedIndex = -1
+				m = m.regenerateChart()
+			}
 		}
 		return m, nil
 	}
+
+	// When in interactive mode, handle navigation
+	if m.legendFocused {
+		oldSelected := m.selectedIndex
+
+		// Map j/k to down/up, h/l to page navigation
+		var tableCmd tea.Cmd
+		switch msg.String() {
+		case "j":
+			// Simulate down arrow
+			m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyDown})
+		case "k":
+			// Simulate up arrow
+			m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyUp})
+		case "h":
+			// Simulate page up
+			m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyPgUp})
+		case "l":
+			// Simulate page down
+			m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyPgDown})
+		default:
+			// Let the table handle other keys (arrow keys, etc.)
+			m.legendTable, tableCmd = m.legendTable.Update(msg)
+		}
+
+		// Update selected index after navigation
+		m = m.updateSelectedFromTable()
+
+		// Regenerate chart if selection changed
+		if oldSelected != m.selectedIndex {
+			m = m.regenerateChart()
+		}
+
+		return m, tableCmd
+	}
+
 	return m, nil
 }
 
@@ -165,7 +197,7 @@ func (m QueryRangeModel) handleRangeGraphOutput() (tea.Model, tea.Cmd) {
 	m.state = stateRangeSuccess
 	// Get terminal width directly
 	chartWidth := m.width - 6 // Account for borders and padding
-	m.chartContent, m.legendEntries = charts.TimeseriesSplit(m.matrix, chartWidth)
+	m.chartContent, m.legendEntries = charts.TimeseriesSplitWithSelection(m.matrix, chartWidth, m.selectedIndex)
 	// Create the legend table
 	(&m).createLegendTable(5)
 	return m, nil
@@ -240,9 +272,13 @@ func (m QueryRangeModel) View() string {
 			if !m.quitting {
 				s.WriteString("\n\n")
 				if m.legendFocused {
-					s.WriteString("Press l to unfocus legend, j/k to navigate, q to quit\n")
+					if m.selectedIndex >= 0 {
+						s.WriteString("Interactive mode • j/k: row • h/l: page • i: exit • q: quit\n")
+					} else {
+						s.WriteString("Interactive mode • j/k: row • h/l: page • i: exit • q: quit\n")
+					}
 				} else {
-					s.WriteString("Press l to focus legend, q to quit\n")
+					s.WriteString("Press i for interactive mode, q to quit\n")
 				}
 			} else {
 				s.WriteString("\n")
@@ -308,6 +344,42 @@ func (m *QueryRangeModel) createLegendTable(maxRows int) {
 		WithRows(rows).
 		WithPageSize(maxRows).
 		Focused(m.legendFocused)
+}
+
+// updateSelectedFromTable updates the selectedIndex based on the table's highlighted row
+func (m QueryRangeModel) updateSelectedFromTable() QueryRangeModel {
+	highlightedRow := m.legendTable.HighlightedRow()
+	if highlightedRow.Data == nil {
+		m.selectedIndex = -1
+		return m
+	}
+
+	// Find the index by matching the metric name
+	metricName, ok := highlightedRow.Data["metric"].(string)
+	if !ok {
+		m.selectedIndex = -1
+		return m
+	}
+
+	for i, entry := range m.legendEntries {
+		if entry.Metric == metricName {
+			m.selectedIndex = i
+			return m
+		}
+	}
+
+	m.selectedIndex = -1
+	return m
+}
+
+// regenerateChart regenerates the chart with the current selection
+func (m QueryRangeModel) regenerateChart() QueryRangeModel {
+	chartWidth := m.width - 6 // Account for borders and padding
+	if chartWidth <= 0 {
+		chartWidth = 80
+	}
+	m.chartContent, m.legendEntries = charts.TimeseriesSplitWithSelection(m.matrix, chartWidth, m.selectedIndex)
+	return m
 }
 
 // GetResult returns the final result for non-interactive outputs
