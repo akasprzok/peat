@@ -2,14 +2,14 @@ package charts
 
 import (
 	"fmt"
+	"math"
 	"strconv"
+	"strings"
 
 	"github.com/NimbleMarkets/ntcharts/canvas/runes"
 	"github.com/NimbleMarkets/ntcharts/linechart/timeserieslinechart"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/prometheus/common/model"
-
-	"math"
 )
 
 var lineStyle = lipgloss.NewStyle().
@@ -22,12 +22,10 @@ var labelStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("6")) // cyan
 
 func Timeseries(matrix model.Matrix, width int) string {
-
 	minYValue := model.SampleValue(math.MaxFloat64)
 	maxYValue := model.SampleValue(-math.MaxFloat64)
 	for _, stream := range matrix {
 		for _, sample := range stream.Values {
-
 			if sample.Value < minYValue {
 				minYValue = sample.Value
 			}
@@ -39,7 +37,7 @@ func Timeseries(matrix model.Matrix, width int) string {
 
 	height := width / 8
 
-	legend := ""
+	var legend strings.Builder
 
 	lc := timeserieslinechart.New(width, height)
 	lc.AxisStyle = axisStyle
@@ -52,7 +50,8 @@ func Timeseries(matrix model.Matrix, width int) string {
 
 	for i, stream := range matrix {
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
-		legend += "\n" + style.Render(fmt.Sprintf("%c %s", runes.FullBlock, stream.Metric.String()))
+		legend.WriteString("\n")
+		legend.WriteString(style.Render(fmt.Sprintf("%c %s", runes.FullBlock, stream.Metric.String())))
 		lc.SetDataSetStyle(stream.Metric.String(), style)
 		for _, sample := range stream.Values {
 			point := timeserieslinechart.TimePoint{
@@ -65,5 +64,5 @@ func Timeseries(matrix model.Matrix, width int) string {
 
 	lc.DrawBrailleAll()
 
-	return lc.View() + legend
+	return lc.View() + legend.String()
 }

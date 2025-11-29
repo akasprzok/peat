@@ -13,14 +13,13 @@ type Charter interface {
 	PrintQueryRange(model.Matrix)
 }
 
-type ntCharts struct {
-}
+type ntCharts struct{}
 
 func NewNtCharts() Charter {
 	return &ntCharts{}
 }
 
-func (c *ntCharts) PrintQuery(vector model.Vector) {
+func (*ntCharts) PrintQuery(vector model.Vector) {
 	width, _, err := term.GetSize(int(os.Stdin.Fd()))
 	if err != nil {
 		fmt.Printf("Error getting terminal size: %v\n", err)
@@ -30,7 +29,7 @@ func (c *ntCharts) PrintQuery(vector model.Vector) {
 	fmt.Println(bc)
 }
 
-func (c *ntCharts) PrintQueryRange(matrix model.Matrix) {
+func (*ntCharts) PrintQueryRange(matrix model.Matrix) {
 	width, _, err := term.GetSize(int(os.Stdin.Fd()))
 	if err != nil {
 		fmt.Printf("Error getting terminal size: %v\n", err)

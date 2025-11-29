@@ -56,10 +56,9 @@ func queryModel(vector model.Vector) (Model, error) {
 			WithRows(rows),
 		filterTextInput: textinput.New(),
 	}, nil
-
 }
 
-func (m Model) Init() tea.Cmd {
+func (Model) Init() tea.Cmd {
 	return nil
 }
 
@@ -72,13 +71,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.table, cmd = m.table.Update(msg)
 	cmds = append(cmds, cmd)
 
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.String() {
 		case "ctrl+c", "q":
 			cmds = append(cmds, tea.Quit)
 		}
-
 	}
 
 	return m, tea.Batch(cmds...)

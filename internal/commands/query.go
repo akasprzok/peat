@@ -50,26 +50,26 @@ func (q *QueryCmd) Run(ctx *Context) error {
 		fmt.Println(table.View())
 	case "json":
 		output := formatVector(vector, warnings, err)
-		json, err := json.MarshalIndent(output, "", "  ")
+		jsonBytes, err := json.MarshalIndent(output, "", "  ")
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(json))
+		fmt.Println(string(jsonBytes))
 	case "yaml":
 		output := formatVector(vector, warnings, err)
-		yaml, err := yaml.Marshal(output)
+		yamlBytes, err := yaml.Marshal(output)
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(yaml))
+		fmt.Println(string(yamlBytes))
 	}
 	return nil
 }
 
-func formatVector(vector model.Vector, warnings []string, err error) map[string]interface{} {
-	data := make([]map[string]interface{}, 0)
+func formatVector(vector model.Vector, warnings []string, err error) map[string]any {
+	data := make([]map[string]any, 0)
 	for _, sample := range vector {
-		data = append(data, map[string]interface{}{
+		data = append(data, map[string]any{
 			"metric":    sample.Metric,
 			"value":     sample.Value,
 			"timestamp": sample.Timestamp.Unix(),
@@ -77,13 +77,13 @@ func formatVector(vector model.Vector, warnings []string, err error) map[string]
 	}
 
 	if err != nil {
-		return map[string]interface{}{
+		return map[string]any{
 			"data":     data,
 			"warnings": warnings,
 			"error":    err.Error(),
 		}
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"data":     data,
 		"warnings": warnings,
 		"error":    nil,

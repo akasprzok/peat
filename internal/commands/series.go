@@ -32,17 +32,17 @@ func (s *SeriesCmd) Run(ctx *Context) error {
 	if len(series) > 0 {
 		switch s.Output {
 		case "json":
-			json, err := json.MarshalIndent(series, "", "  ")
+			jsonBytes, err := json.MarshalIndent(series, "", "  ")
 			if err != nil {
 				fmt.Printf("Error marshalling series: %v\n", err)
 			}
-			fmt.Println(string(json))
+			fmt.Println(string(jsonBytes))
 		case "yaml":
-			yaml, err := yaml.Marshal(series)
+			yamlBytes, err := yaml.Marshal(series)
 			if err != nil {
 				fmt.Printf("Error marshalling series: %v\n", err)
 			}
-			fmt.Println(string(yaml))
+			fmt.Println(string(yamlBytes))
 		}
 	} else {
 		fmt.Println("No Data")

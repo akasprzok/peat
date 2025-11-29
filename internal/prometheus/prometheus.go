@@ -46,8 +46,10 @@ func (c *prometheusClient) Query(query string, timeout time.Duration) (v1.Warnin
 
 	switch result.Type() {
 	case model.ValVector:
-		vector := result.(model.Vector)
-		return warnings, vector, nil
+		v := result.(model.Vector)
+		return warnings, v, nil
+	case model.ValNone, model.ValScalar, model.ValMatrix, model.ValString:
+		return warnings, vector, fmt.Errorf("unexpected result type: %s", result.Type())
 	default:
 		return warnings, vector, fmt.Errorf("unknown result type: %s", result.Type())
 	}
@@ -68,8 +70,10 @@ func (c *prometheusClient) QueryRange(query string, start, end time.Time, step t
 
 	switch result.Type() {
 	case model.ValMatrix:
-		matrix := result.(model.Matrix)
-		return matrix, warnings, nil
+		m := result.(model.Matrix)
+		return m, warnings, nil
+	case model.ValNone, model.ValScalar, model.ValVector, model.ValString:
+		return matrix, warnings, fmt.Errorf("unexpected result type: %s", result.Type())
 	default:
 		return matrix, warnings, fmt.Errorf("unknown result type: %s", result.Type())
 	}

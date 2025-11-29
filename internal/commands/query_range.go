@@ -35,46 +35,46 @@ func (q *QueryRangeCmd) Run(ctx *Context) error {
 		charter.PrintQueryRange(matrix)
 	case "json":
 		output := formatMatrix(matrix, warnings, err)
-		json, err := json.MarshalIndent(output, "", "  ")
+		jsonBytes, err := json.MarshalIndent(output, "", "  ")
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(json))
+		fmt.Println(string(jsonBytes))
 	case "yaml":
 		output := formatMatrix(matrix, warnings, err)
-		yaml, err := yaml.Marshal(output)
+		yamlBytes, err := yaml.Marshal(output)
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(yaml))
+		fmt.Println(string(yamlBytes))
 	}
 	return nil
 }
 
-func formatMatrix(matrix model.Matrix, warnings []string, err error) map[string]interface{} {
-	data := make([]map[string]interface{}, 0)
+func formatMatrix(matrix model.Matrix, warnings []string, err error) map[string]any {
+	data := make([]map[string]any, 0)
 	for _, sample := range matrix {
-		values := make([]map[string]interface{}, 0)
+		values := make([]map[string]any, 0)
 		for _, value := range sample.Values {
-			values = append(values, map[string]interface{}{
+			values = append(values, map[string]any{
 				"timestamp": value.Timestamp.Unix(),
 				"value":     value.Value,
 			})
 		}
-		data = append(data, map[string]interface{}{
+		data = append(data, map[string]any{
 			"metric": sample.Metric,
 			"values": values,
 		})
 	}
 
 	if err != nil {
-		return map[string]interface{}{
+		return map[string]any{
 			"data":     data,
 			"warnings": warnings,
 			"error":    err.Error(),
 		}
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"data":     data,
 		"warnings": warnings,
 		"error":    nil,
