@@ -22,6 +22,12 @@ var labelStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("6")) // cyan
 
 func Timeseries(matrix model.Matrix, width int) string {
+	chart, legend := TimeseriesSplit(matrix, width)
+	return chart + legend
+}
+
+// TimeseriesSplit returns the chart and legend separately
+func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend string) {
 	minYValue := model.SampleValue(math.MaxFloat64)
 	maxYValue := model.SampleValue(-math.MaxFloat64)
 	for _, stream := range matrix {
@@ -37,7 +43,7 @@ func Timeseries(matrix model.Matrix, width int) string {
 
 	height := width / 8
 
-	var legend strings.Builder
+	var legendBuilder strings.Builder
 
 	lc := timeserieslinechart.New(width, height)
 	lc.AxisStyle = axisStyle
@@ -50,8 +56,8 @@ func Timeseries(matrix model.Matrix, width int) string {
 
 	for i, stream := range matrix {
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
-		legend.WriteString("\n")
-		legend.WriteString(style.Render(fmt.Sprintf("%c %s", runes.FullBlock, stream.Metric.String())))
+		legendBuilder.WriteString("\n")
+		legendBuilder.WriteString(style.Render(fmt.Sprintf("%c %s", runes.FullBlock, stream.Metric.String())))
 		lc.SetDataSetStyle(stream.Metric.String(), style)
 		for _, sample := range stream.Values {
 			point := timeserieslinechart.TimePoint{
@@ -64,5 +70,5 @@ func Timeseries(matrix model.Matrix, width int) string {
 
 	lc.DrawBrailleAll()
 
-	return lc.View() + legend.String()
+	return lc.View(), legendBuilder.String()
 }

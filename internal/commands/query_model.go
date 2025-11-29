@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
+	"golang.org/x/term"
 	"gopkg.in/yaml.v2"
 )
 
@@ -162,12 +164,19 @@ func (m QueryModel) handleOutputFormat() (tea.Model, tea.Cmd) {
 
 func (m QueryModel) handleGraphOutput() (tea.Model, tea.Cmd) {
 	m.state = stateSuccess
+	// Get terminal width directly
 	width := m.width
 	if width == 0 {
-		width = 80 // default width
+		// Try to get actual terminal width
+		termWidth, _, err := term.GetSize(int(os.Stdout.Fd()))
+		if err == nil {
+			width = termWidth
+		} else {
+			width = 80 // fallback default
+		}
 	}
 	m.chartContent = charts.Barchart(m.vector, width)
-	return m, tea.Quit
+	return m, nil
 }
 
 func (m QueryModel) handleTableOutput() (tea.Model, tea.Cmd) {
@@ -201,10 +210,6 @@ func (m QueryModel) updateTableModel(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m QueryModel) View() string {
-	if m.quitting && m.state != stateShowingTable {
-		return ""
-	}
-
 	var s strings.Builder
 
 	switch m.state {
@@ -230,7 +235,12 @@ func (m QueryModel) View() string {
 		switch m.output {
 		case "graph":
 			s.WriteString(m.chartContent)
-			s.WriteString("\n")
+			if !m.quitting {
+				s.WriteString("\n\n")
+				s.WriteString("Press q or ctrl+c to quit\n")
+			} else {
+				s.WriteString("\n")
+			}
 		case "json":
 			output := formatVector(m.vector, m.warnings, m.err)
 			jsonBytes, err := json.MarshalIndent(output, "", "  ")
@@ -252,7 +262,7 @@ func (m QueryModel) View() string {
 		}
 
 	case stateShowingTable:
-		if m.tableModel != nil {
+		if m.tableModel != nil && !m.quitting {
 			// Show warnings if any
 			if len(m.warnings) > 0 {
 				s.WriteString("\n")
