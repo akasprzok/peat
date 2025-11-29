@@ -7,7 +7,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/evertras/bubble-table/table"
 	teatable "github.com/evertras/bubble-table/table"
 	"github.com/prometheus/common/model"
 )
@@ -24,7 +23,7 @@ func PrintQuery(vector model.Vector) (Model, error) {
 func queryModel(vector model.Vector) (Model, error) {
 	maxValue := 0
 	longestMetric := 0
-	rows := make([]table.Row, 0, len(vector))
+	rows := make([]teatable.Row, 0, len(vector))
 	for _, sample := range vector {
 		if int(sample.Value) > maxValue {
 			maxValue = int(sample.Value)
@@ -34,21 +33,21 @@ func queryModel(vector model.Vector) (Model, error) {
 		if len(sample.Metric.String()) > longestMetric {
 			longestMetric = len(sample.Metric.String())
 		}
-		rows = append(rows, table.NewRow(table.RowData{
+		rows = append(rows, teatable.NewRow(teatable.RowData{
 			"metric":    sample.Metric.String(),
 			"value":     sample.Value.String(),
 			"timestamp": timestamp,
 		}))
 	}
 
-	columns := []table.Column{
-		table.NewColumn("metric", "Metric", max(longestMetric+1, 6)).WithFiltered(true),
-		table.NewColumn("value", "Value", max(len(strconv.Itoa(maxValue))+1, 6)).WithFiltered(true),
-		table.NewColumn("timestamp", "Timestamp", 26).WithFiltered(true),
+	columns := []teatable.Column{
+		teatable.NewColumn("metric", "Metric", max(longestMetric+1, 6)).WithFiltered(true),
+		teatable.NewColumn("value", "Value", max(len(strconv.Itoa(maxValue))+1, 6)).WithFiltered(true),
+		teatable.NewColumn("timestamp", "Timestamp", 26).WithFiltered(true),
 	}
 
 	return Model{
-		table: table.
+		table: teatable.
 			New(columns).
 			Filtered(true).
 			Focused(true).
