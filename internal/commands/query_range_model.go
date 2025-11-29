@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	teatable "github.com/evertras/bubble-table/table"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	"gopkg.in/yaml.v2"
@@ -46,6 +47,8 @@ type QueryRangeModel struct {
 	height        int
 	chartContent  string
 	legendEntries []charts.LegendEntry
+	legendTable   teatable.Model
+	legendFocused bool
 	quitting      bool
 }
 
@@ -107,9 +110,29 @@ func (m QueryRangeModel) handleRangeWindowSize(msg tea.WindowSizeMsg) QueryRange
 }
 
 func (m QueryRangeModel) handleRangeKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if msg.String() == "q" || msg.String() == "ctrl+c" {
+	switch msg.String() {
+	case "q", "ctrl+c":
 		m.quitting = true
 		return m, tea.Quit
+	case "l":
+		// Toggle legend focus
+		if m.state == stateRangeSuccess && m.output == "graph" {
+			m.legendFocused = !m.legendFocused
+			m.legendTable = m.legendTable.Focused(m.legendFocused)
+		}
+		return m, nil
+	case "j", "down":
+		// Move down in legend if focused
+		if m.legendFocused {
+			m.legendTable = m.legendTable.PageDown()
+		}
+		return m, nil
+	case "k", "up":
+		// Move up in legend if focused
+		if m.legendFocused {
+			m.legendTable = m.legendTable.PageUp()
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -143,6 +166,8 @@ func (m QueryRangeModel) handleRangeGraphOutput() (tea.Model, tea.Cmd) {
 	// Get terminal width directly
 	chartWidth := m.width - 6 // Account for borders and padding
 	m.chartContent, m.legendEntries = charts.TimeseriesSplit(m.matrix, chartWidth)
+	// Create the legend table
+	(&m).createLegendTable(5)
 	return m, nil
 }
 
@@ -194,9 +219,14 @@ func (m QueryRangeModel) View() string {
 
 			// Style the chart and legend
 			styledChart := chartStyle.Render(m.chartContent)
-			// Format legend entries
-			legendText := m.formatLegendEntries(5)
-			styledLegend := legendStyle.Render(legendText)
+
+			// Update legend border color based on focus
+			if m.legendFocused {
+				legendStyle = legendStyle.BorderForeground(lipgloss.Color("205")) // Highlight when focused
+			}
+
+			// Render legend table
+			styledLegend := legendStyle.Render(m.legendTable.View())
 
 			// Join them vertically (legend below chart)
 			layout := lipgloss.JoinVertical(
@@ -209,7 +239,11 @@ func (m QueryRangeModel) View() string {
 			s.WriteString(layout)
 			if !m.quitting {
 				s.WriteString("\n\n")
-				s.WriteString("Press q or ctrl+c to quit\n")
+				if m.legendFocused {
+					s.WriteString("Press l to unfocus legend, j/k to navigate, q to quit\n")
+				} else {
+					s.WriteString("Press l to focus legend, q to quit\n")
+				}
 			} else {
 				s.WriteString("\n")
 			}
@@ -237,36 +271,43 @@ func (m QueryRangeModel) View() string {
 	return s.String()
 }
 
-// formatLegendEntries formats the legend entries as a simple list with max rows
-func (m QueryRangeModel) formatLegendEntries(maxRows int) string {
+// createLegendTable creates and stores the legend table in the model
+func (m *QueryRangeModel) createLegendTable(maxRows int) {
 	if len(m.legendEntries) == 0 {
-		return "No data"
+		return
 	}
 
-	var s strings.Builder
-	s.WriteString("Legend:\n\n")
+	// Create rows for the table
+	rows := make([]teatable.Row, 0, len(m.legendEntries))
+	longestMetric := 0
 
-	// Show up to maxRows entries
-	displayCount := maxRows
-	if len(m.legendEntries) < displayCount {
-		displayCount = len(m.legendEntries)
-	}
+	for _, entry := range m.legendEntries {
+		if len(entry.Metric) > longestMetric {
+			longestMetric = len(entry.Metric)
+		}
 
-	for i := 0; i < displayCount; i++ {
-		entry := m.legendEntries[i]
+		// Create colored indicator
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(entry.ColorIndex)))
-		s.WriteString(style.Render("█ "))
-		s.WriteString(entry.Metric)
-		s.WriteString("\n")
+		colorIndicator := style.Render("█")
+
+		rows = append(rows, teatable.NewRow(teatable.RowData{
+			"color":  colorIndicator,
+			"metric": entry.Metric,
+		}))
 	}
 
-	// Add "and X more..." if there are more series
-	if len(m.legendEntries) > maxRows {
-		remaining := len(m.legendEntries) - maxRows
-		s.WriteString(fmt.Sprintf("\n... and %d more series", remaining))
+	// Create columns
+	columns := []teatable.Column{
+		teatable.NewColumn("color", "", 3),
+		teatable.NewColumn("metric", "Metric", max(longestMetric, 20)),
 	}
 
-	return s.String()
+	// Create table with max rows
+	m.legendTable = teatable.
+		New(columns).
+		WithRows(rows).
+		WithPageSize(maxRows).
+		Focused(m.legendFocused)
 }
 
 // GetResult returns the final result for non-interactive outputs
