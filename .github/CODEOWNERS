@@ -1,0 +1,17 @@
+# This file defines code owners for the peat repository
+# Each line is a file pattern followed by one or more owners
+
+# Default owner for everything in the repo
+* @akasprzok
+
+# GitHub Actions and CI/CD
+/.github/ @akasprzok
+
+# Go module files
+/go.mod @akasprzok
+/go.sum @akasprzok
+
+# Build and release configuration
+/Makefile @akasprzok
+/.goreleaser.yaml @akasprzok
+
