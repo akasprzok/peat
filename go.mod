@@ -1,10 +1,10 @@
 module github.com/akasprzok/peat
 
-go 1.24.4
+go 1.24.9
 
 require (
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/prometheus v0.308.1
+	github.com/prometheus/prometheus v0.309.1
 	golang.org/x/term v0.38.0
 )
 
