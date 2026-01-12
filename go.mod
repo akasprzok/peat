@@ -23,7 +23,7 @@ require (
 )
 
 require (
-	github.com/NimbleMarkets/ntcharts v0.3.1
+	github.com/NimbleMarkets/ntcharts v0.4.0
 	github.com/alecthomas/kong v1.13.0
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/bubbles v0.21.0
