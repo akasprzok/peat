@@ -106,10 +106,8 @@ func TestFormatVector(t *testing.T) {
 				if errStr != tt.err.Error() {
 					t.Errorf("formatVector() error = %v, want %v", errStr, tt.err.Error())
 				}
-			} else {
-				if result["error"] != nil {
-					t.Errorf("formatVector() error = %v, want nil", result["error"])
-				}
+			} else if result["error"] != nil {
+				t.Errorf("formatVector() error = %v, want nil", result["error"])
 			}
 		})
 	}

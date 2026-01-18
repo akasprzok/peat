@@ -38,7 +38,7 @@ func (q *QueryCmd) Run(ctx *Context) error {
 }
 
 func formatVector(vector model.Vector, warnings v1.Warnings, err error) map[string]any {
-	data := make([]map[string]any, 0)
+	data := make([]map[string]any, 0, len(vector))
 	for _, sample := range vector {
 		data = append(data, map[string]any{
 			"metric":    sample.Metric,

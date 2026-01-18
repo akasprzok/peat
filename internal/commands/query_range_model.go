@@ -304,11 +304,7 @@ func (m QueryRangeModel) View() string {
 			if !m.quitting {
 				s.WriteString("\n\n")
 				if m.legendFocused {
-					if m.selectedIndex >= 0 {
-						s.WriteString("Interactive mode • j/k: row • h/l: page • i: exit • q: quit\n")
-					} else {
-						s.WriteString("Interactive mode • j/k: row • h/l: page • i: exit • q: quit\n")
-					}
+					s.WriteString("Interactive mode • j/k: row • h/l: page • i: exit • q: quit\n")
 				} else {
 					s.WriteString("Press i for interactive mode, q to quit\n")
 				}

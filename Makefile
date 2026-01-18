@@ -5,7 +5,6 @@ BINARY_NAME=peat
 BUILD_DIR=dist
 MAIN_PATH=.
 GO=go
-GOLANGCI_LINT=golangci-lint
 GORELEASER=goreleaser
 
 # Build information
@@ -34,7 +33,7 @@ test-coverage: test ## Run tests with coverage report
 
 lint: ## Run golangci-lint
 	@echo "Running linter..."
-	$(GOLANGCI_LINT) run
+	$(GO) tool golangci-lint run
 
 fmt: ## Format Go code
 	@echo "Formatting code..."

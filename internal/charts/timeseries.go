@@ -67,13 +67,14 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 		})
 
 		var style lipgloss.Style
-		if selectedIndex == -1 {
+		switch {
+		case selectedIndex == -1:
 			// No selection, show all in their original colors
 			style = lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
-		} else if i == selectedIndex {
+		case i == selectedIndex:
 			// Selected series will be drawn separately below for layering
 			continue
-		} else {
+		default:
 			// Non-selected series are greyed out
 			style = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 		}

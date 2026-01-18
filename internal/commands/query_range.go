@@ -42,9 +42,9 @@ func (q *QueryRangeCmd) Run(ctx *Context) error {
 }
 
 func formatMatrix(matrix model.Matrix, warnings v1.Warnings, err error) map[string]any {
-	data := make([]map[string]any, 0)
+	data := make([]map[string]any, 0, len(matrix))
 	for _, sample := range matrix {
-		values := make([]map[string]any, 0)
+		values := make([]map[string]any, 0, len(sample.Values))
 		for _, value := range sample.Values {
 			values = append(values, map[string]any{
 				"timestamp": value.Timestamp.Unix(),

@@ -10,7 +10,7 @@ import (
 )
 
 func Barchart(vector model.Vector, width int) string {
-	barData := make([]barchart.BarData, 0)
+	barData := make([]barchart.BarData, 0, len(vector))
 	for i, sample := range vector {
 		barData = append(barData, barchart.BarData{
 			Label: fmt.Sprintf("%s (%d)", sample.Metric.String(), int(sample.Value)),
