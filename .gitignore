@@ -6,6 +6,8 @@ dist/
 
 # binary
 /peat
+peat-*
 
 # test coverage
 coverage.out
+coverage.html
