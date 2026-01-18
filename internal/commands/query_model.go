@@ -12,17 +12,10 @@ import (
 	"github.com/akasprzok/peat/internal/tables"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	"golang.org/x/term"
 	"gopkg.in/yaml.v2"
-)
-
-var (
-	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
-	warningStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 )
 
 type queryState int
@@ -41,34 +34,31 @@ type queryResultMsg struct {
 }
 
 type QueryModel struct {
-	promClient   prometheus.Client
-	query        string
-	timeout      time.Duration
-	output       string
-	state        queryState
-	spinner      spinner.Model
-	warnings     v1.Warnings
-	vector       model.Vector
-	err          error
-	width        int
-	height       int
-	tableModel   *tables.Model
-	chartContent string
-	quitting     bool
+	promClient      prometheus.Client
+	query           string
+	timeout         time.Duration
+	output          string
+	state           queryState
+	spinner         spinner.Model
+	warnings        v1.Warnings
+	vector          model.Vector
+	err             error
+	width           int
+	height          int
+	tableModel      *tables.Model
+	chartContent    string
+	formattedOutput string
+	quitting        bool
 }
 
-func NewQueryModel(promURL, query, output string, timeout time.Duration) QueryModel {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = spinnerStyle
-
+func NewQueryModel(client prometheus.Client, query, output string, timeout time.Duration) QueryModel {
 	return QueryModel{
-		promClient: prometheus.NewClient(promURL),
+		promClient: client,
 		query:      query,
 		timeout:    timeout,
 		output:     output,
 		state:      stateLoading,
-		spinner:    s,
+		spinner:    NewLoadingSpinner(),
 	}
 }
 
@@ -155,11 +145,40 @@ func (m QueryModel) handleOutputFormat() (tea.Model, tea.Cmd) {
 		return m.handleGraphOutput()
 	case "table":
 		return m.handleTableOutput()
+	case "json":
+		return m.handleJSONOutput()
+	case "yaml":
+		return m.handleYAMLOutput()
 	default:
-		// For json/yaml, we'll just transition to success state
 		m.state = stateSuccess
 		return m, tea.Quit
 	}
+}
+
+func (m QueryModel) handleJSONOutput() (tea.Model, tea.Cmd) {
+	output := formatVector(m.vector, m.warnings, m.err)
+	jsonBytes, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		m.err = fmt.Errorf("formatting JSON: %w", err)
+		m.state = stateError
+		return m, tea.Quit
+	}
+	m.formattedOutput = string(jsonBytes)
+	m.state = stateSuccess
+	return m, tea.Quit
+}
+
+func (m QueryModel) handleYAMLOutput() (tea.Model, tea.Cmd) {
+	output := formatVector(m.vector, m.warnings, m.err)
+	yamlBytes, err := yaml.Marshal(output)
+	if err != nil {
+		m.err = fmt.Errorf("formatting YAML: %w", err)
+		m.state = stateError
+		return m, tea.Quit
+	}
+	m.formattedOutput = string(yamlBytes)
+	m.state = stateSuccess
+	return m, tea.Quit
 }
 
 func (m QueryModel) handleGraphOutput() (tea.Model, tea.Cmd) {
@@ -172,7 +191,7 @@ func (m QueryModel) handleGraphOutput() (tea.Model, tea.Cmd) {
 		if err == nil {
 			width = termWidth
 		} else {
-			width = 80 // fallback default
+			width = DefaultTerminalWidth
 		}
 	}
 	m.chartContent = charts.Barchart(m.vector, width)
@@ -218,15 +237,15 @@ func (m QueryModel) View() string {
 
 	case stateError:
 		s.WriteString("\n")
-		s.WriteString(errorStyle.Render("Error: ") + m.err.Error() + "\n")
+		s.WriteString(ErrorStyle.Render("Error: ") + m.err.Error() + "\n")
 
 	case stateSuccess:
 		// Show warnings if any
 		if len(m.warnings) > 0 {
 			s.WriteString("\n")
-			s.WriteString(warningStyle.Render("Warnings:\n"))
+			s.WriteString(WarningStyle.Render("Warnings:\n"))
 			for _, w := range m.warnings {
-				s.WriteString(warningStyle.Render(fmt.Sprintf("  • %s\n", w)))
+				s.WriteString(WarningStyle.Render(fmt.Sprintf("  • %s\n", w)))
 			}
 			s.WriteString("\n")
 		}
@@ -241,24 +260,9 @@ func (m QueryModel) View() string {
 			} else {
 				s.WriteString("\n")
 			}
-		case "json":
-			output := formatVector(m.vector, m.warnings, m.err)
-			jsonBytes, err := json.MarshalIndent(output, "", "  ")
-			if err != nil {
-				s.WriteString(errorStyle.Render(fmt.Sprintf("Error formatting JSON: %v\n", err)))
-			} else {
-				s.Write(jsonBytes)
-				s.WriteString("\n")
-			}
-		case "yaml":
-			output := formatVector(m.vector, m.warnings, m.err)
-			yamlBytes, err := yaml.Marshal(output)
-			if err != nil {
-				s.WriteString(errorStyle.Render(fmt.Sprintf("Error formatting YAML: %v\n", err)))
-			} else {
-				s.Write(yamlBytes)
-				s.WriteString("\n")
-			}
+		case "json", "yaml":
+			s.WriteString(m.formattedOutput)
+			s.WriteString("\n")
 		}
 
 	case stateShowingTable:
@@ -266,7 +270,7 @@ func (m QueryModel) View() string {
 			// Show warnings if any
 			if len(m.warnings) > 0 {
 				s.WriteString("\n")
-				s.WriteString(warningStyle.Render("Warnings: "))
+				s.WriteString(WarningStyle.Render("Warnings: "))
 				s.WriteString(fmt.Sprintf("%v\n", m.warnings))
 			}
 			s.WriteString(m.tableModel.View())

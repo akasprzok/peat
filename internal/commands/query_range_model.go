@@ -33,39 +33,38 @@ type queryRangeResultMsg struct {
 }
 
 type QueryRangeModel struct {
-	promClient    prometheus.Client
-	query         string
-	timeRange     time.Duration
-	timeout       time.Duration
-	output        string
-	state         queryRangeState
-	spinner       spinner.Model
-	matrix        model.Matrix
-	warnings      v1.Warnings
-	err           error
-	width         int
-	height        int
-	chartContent  string
-	legendEntries []charts.LegendEntry
-	legendTable   teatable.Model
-	legendFocused bool
-	selectedIndex int // -1 means no selection, otherwise index of selected series
-	quitting      bool
+	promClient      prometheus.Client
+	query           string
+	timeRange       time.Duration
+	step            time.Duration
+	timeout         time.Duration
+	output          string
+	state           queryRangeState
+	spinner         spinner.Model
+	matrix          model.Matrix
+	warnings        v1.Warnings
+	err             error
+	width           int
+	height          int
+	chartContent    string
+	formattedOutput string
+	legendEntries   []charts.LegendEntry
+	legendTable     teatable.Model
+	legendFocused   bool
+	selectedIndex   int // -1 means no selection, otherwise index of selected series
+	quitting        bool
 }
 
-func NewQueryRangeModel(promURL, query string, timeRange time.Duration, output string, timeout time.Duration) QueryRangeModel {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = spinnerStyle
-
+func NewQueryRangeModel(client prometheus.Client, query string, timeRange, step time.Duration, output string, timeout time.Duration) QueryRangeModel {
 	return QueryRangeModel{
-		promClient:    prometheus.NewClient(promURL),
+		promClient:    client,
 		query:         query,
 		timeRange:     timeRange,
+		step:          step,
 		timeout:       timeout,
 		output:        output,
 		state:         stateRangeLoading,
-		spinner:       s,
+		spinner:       NewLoadingSpinner(),
 		selectedIndex: -1, // No selection initially
 	}
 }
@@ -81,7 +80,7 @@ func (m QueryRangeModel) executeQueryRange() tea.Cmd {
 	return func() tea.Msg {
 		end := time.Now()
 		start := end.Add(-m.timeRange)
-		matrix, warnings, err := m.promClient.QueryRange(m.query, start, end, 1*time.Minute, m.timeout)
+		matrix, warnings, err := m.promClient.QueryRange(m.query, start, end, m.step, m.timeout)
 		return queryRangeResultMsg{
 			matrix:   matrix,
 			warnings: warnings,
@@ -112,61 +111,65 @@ func (m QueryRangeModel) handleRangeWindowSize(msg tea.WindowSizeMsg) QueryRange
 }
 
 func (m QueryRangeModel) handleRangeKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Handle global keys first
 	switch msg.String() {
 	case "q", "ctrl+c":
-		m.quitting = true
-		return m, tea.Quit
+		return m.handleQuit()
 	case "i":
-		// Toggle interactive mode (legend focus)
-		if m.state == stateRangeSuccess && m.output == "graph" {
-			m.legendFocused = !m.legendFocused
-			m.legendTable = m.legendTable.Focused(m.legendFocused)
-			if !m.legendFocused {
-				// When exiting interactive mode, clear selection
-				m.selectedIndex = -1
-				m = m.regenerateChart()
-			}
-		}
-		return m, nil
+		return m.handleToggleInteractive()
 	}
 
-	// When in interactive mode, handle navigation
 	if m.legendFocused {
-		oldSelected := m.selectedIndex
-
-		// Map j/k to down/up, h/l to page navigation
-		var tableCmd tea.Cmd
-		switch msg.String() {
-		case "j":
-			// Simulate down arrow
-			m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyDown})
-		case "k":
-			// Simulate up arrow
-			m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyUp})
-		case "h":
-			// Simulate page up
-			m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyPgUp})
-		case "l":
-			// Simulate page down
-			m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyPgDown})
-		default:
-			// Let the table handle other keys (arrow keys, etc.)
-			m.legendTable, tableCmd = m.legendTable.Update(msg)
-		}
-
-		// Update selected index after navigation
-		m = m.updateSelectedFromTable()
-
-		// Regenerate chart if selection changed
-		if oldSelected != m.selectedIndex {
-			m = m.regenerateChart()
-		}
-
-		return m, tableCmd
+		return m.handleLegendNavigation(msg)
 	}
 
 	return m, nil
+}
+
+func (m QueryRangeModel) handleQuit() (tea.Model, tea.Cmd) {
+	m.quitting = true
+	return m, tea.Quit
+}
+
+func (m QueryRangeModel) handleToggleInteractive() (tea.Model, tea.Cmd) {
+	if m.state != stateRangeSuccess || m.output != "graph" {
+		return m, nil
+	}
+
+	m.legendFocused = !m.legendFocused
+	m.legendTable = m.legendTable.Focused(m.legendFocused)
+
+	if !m.legendFocused {
+		m.selectedIndex = -1
+		m = m.regenerateChart()
+	}
+
+	return m, nil
+}
+
+func (m QueryRangeModel) handleLegendNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	oldSelected := m.selectedIndex
+
+	var tableCmd tea.Cmd
+	switch msg.String() {
+	case "j":
+		m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyDown})
+	case "k":
+		m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyUp})
+	case "h":
+		m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyPgUp})
+	case "l":
+		m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyPgDown})
+	default:
+		m.legendTable, tableCmd = m.legendTable.Update(msg)
+	}
+
+	m = m.updateSelectedFromTable()
+
+	if oldSelected != m.selectedIndex {
+		m = m.regenerateChart()
+	}
+
+	return m, tableCmd
 }
 
 func (m QueryRangeModel) handleRangeQueryResult(msg queryRangeResultMsg) (tea.Model, tea.Cmd) {
@@ -186,11 +189,40 @@ func (m QueryRangeModel) handleRangeOutputFormat() (tea.Model, tea.Cmd) {
 	switch m.output {
 	case "graph":
 		return m.handleRangeGraphOutput()
+	case "json":
+		return m.handleRangeJSONOutput()
+	case "yaml":
+		return m.handleRangeYAMLOutput()
 	default:
-		// For json/yaml, we'll just transition to success state
 		m.state = stateRangeSuccess
 		return m, tea.Quit
 	}
+}
+
+func (m QueryRangeModel) handleRangeJSONOutput() (tea.Model, tea.Cmd) {
+	output := formatMatrix(m.matrix, m.warnings, m.err)
+	jsonBytes, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		m.err = fmt.Errorf("formatting JSON: %w", err)
+		m.state = stateRangeError
+		return m, tea.Quit
+	}
+	m.formattedOutput = string(jsonBytes)
+	m.state = stateRangeSuccess
+	return m, tea.Quit
+}
+
+func (m QueryRangeModel) handleRangeYAMLOutput() (tea.Model, tea.Cmd) {
+	output := formatMatrix(m.matrix, m.warnings, m.err)
+	yamlBytes, err := yaml.Marshal(output)
+	if err != nil {
+		m.err = fmt.Errorf("formatting YAML: %w", err)
+		m.state = stateRangeError
+		return m, tea.Quit
+	}
+	m.formattedOutput = string(yamlBytes)
+	m.state = stateRangeSuccess
+	return m, tea.Quit
 }
 
 func (m QueryRangeModel) handleRangeGraphOutput() (tea.Model, tea.Cmd) {
@@ -221,15 +253,15 @@ func (m QueryRangeModel) View() string {
 
 	case stateRangeError:
 		s.WriteString("\n")
-		s.WriteString(errorStyle.Render("Error: ") + m.err.Error() + "\n")
+		s.WriteString(ErrorStyle.Render("Error: ") + m.err.Error() + "\n")
 
 	case stateRangeSuccess:
 		// Show warnings if any
 		if len(m.warnings) > 0 {
 			s.WriteString("\n")
-			s.WriteString(warningStyle.Render("Warnings:\n"))
+			s.WriteString(WarningStyle.Render("Warnings:\n"))
 			for _, w := range m.warnings {
-				s.WriteString(warningStyle.Render(fmt.Sprintf("  • %s\n", w)))
+				s.WriteString(WarningStyle.Render(fmt.Sprintf("  • %s\n", w)))
 			}
 			s.WriteString("\n")
 		}
@@ -272,35 +304,16 @@ func (m QueryRangeModel) View() string {
 			if !m.quitting {
 				s.WriteString("\n\n")
 				if m.legendFocused {
-					if m.selectedIndex >= 0 {
-						s.WriteString("Interactive mode • j/k: row • h/l: page • i: exit • q: quit\n")
-					} else {
-						s.WriteString("Interactive mode • j/k: row • h/l: page • i: exit • q: quit\n")
-					}
+					s.WriteString("Interactive mode • j/k: row • h/l: page • i: exit • q: quit\n")
 				} else {
 					s.WriteString("Press i for interactive mode, q to quit\n")
 				}
 			} else {
 				s.WriteString("\n")
 			}
-		case "json":
-			output := formatMatrix(m.matrix, m.warnings, m.err)
-			jsonBytes, err := json.MarshalIndent(output, "", "  ")
-			if err != nil {
-				s.WriteString(errorStyle.Render(fmt.Sprintf("Error formatting JSON: %v\n", err)))
-			} else {
-				s.Write(jsonBytes)
-				s.WriteString("\n")
-			}
-		case "yaml":
-			output := formatMatrix(m.matrix, m.warnings, m.err)
-			yamlBytes, err := yaml.Marshal(output)
-			if err != nil {
-				s.WriteString(errorStyle.Render(fmt.Sprintf("Error formatting YAML: %v\n", err)))
-			} else {
-				s.Write(yamlBytes)
-				s.WriteString("\n")
-			}
+		case "json", "yaml":
+			s.WriteString(m.formattedOutput)
+			s.WriteString("\n")
 		}
 	}
 

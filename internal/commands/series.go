@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/akasprzok/peat/internal/prometheus"
@@ -18,34 +19,37 @@ type SeriesCmd struct {
 }
 
 func (s *SeriesCmd) Run(ctx *Context) error {
-	prometheusClient := prometheus.NewClient(s.PrometheusURL)
+	prometheusClient, err := prometheus.NewClient(s.PrometheusURL)
+	if err != nil {
+		return err
+	}
 	end := time.Now()
 	start := end.Add(-s.Range)
 	series, warnings, err := prometheusClient.Series(s.Match, start, end, s.Limit, ctx.Timeout)
 	if err != nil {
-		fmt.Printf("Error querying Prometheus: %v\n", err)
 		return err
 	}
 	if len(warnings) > 0 {
-		fmt.Printf("Warnings: %v\n", warnings)
+		fmt.Fprintf(os.Stderr, "Warnings: %v\n", warnings)
 	}
-	if len(series) > 0 {
-		switch s.Output {
-		case "json":
-			jsonBytes, err := json.MarshalIndent(series, "", "  ")
-			if err != nil {
-				fmt.Printf("Error marshalling series: %v\n", err)
-			}
-			fmt.Println(string(jsonBytes))
-		case "yaml":
-			yamlBytes, err := yaml.Marshal(series)
-			if err != nil {
-				fmt.Printf("Error marshalling series: %v\n", err)
-			}
-			fmt.Println(string(yamlBytes))
-		}
-	} else {
+	if len(series) == 0 {
 		fmt.Println("No Data")
+		return nil
+	}
+
+	switch s.Output {
+	case "json":
+		jsonBytes, err := json.MarshalIndent(series, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshalling series to JSON: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+	case "yaml":
+		yamlBytes, err := yaml.Marshal(series)
+		if err != nil {
+			return fmt.Errorf("marshalling series to YAML: %w", err)
+		}
+		fmt.Println(string(yamlBytes))
 	}
 	return nil
 }

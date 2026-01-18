@@ -46,7 +46,7 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 		}
 	}
 
-	height := width / 8
+	height := width / ChartHeightRatio
 
 	legendEntries := make([]LegendEntry, 0, len(matrix))
 
@@ -67,23 +67,26 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 		})
 
 		var style lipgloss.Style
-		// Determine styling based on selection state
-		if selectedIndex == -1 {
+		switch {
+		case selectedIndex == -1:
 			// No selection, show all in their original colors
 			style = lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
-			lc.SetDataSetStyle(stream.Metric.String(), style)
-			for _, sample := range stream.Values {
-				point := timeserieslinechart.TimePoint{
-					Time:  sample.Timestamp.Time(),
-					Value: float64(sample.Value),
-				}
-				lc.PushDataSet(stream.Metric.String(), point)
-			}
-		} else {
-			// Not selected, grey it out
-			// style = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		case i == selectedIndex:
+			// Selected series will be drawn separately below for layering
+			continue
+		default:
+			// Non-selected series are greyed out
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 		}
 
+		lc.SetDataSetStyle(stream.Metric.String(), style)
+		for _, sample := range stream.Values {
+			point := timeserieslinechart.TimePoint{
+				Time:  sample.Timestamp.Time(),
+				Value: float64(sample.Value),
+			}
+			lc.PushDataSet(stream.Metric.String(), point)
+		}
 	}
 
 	// If a series is selected, draw it a second time to ensure it appears on top
