@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"github.com/akasprzok/peat/internal/prometheus"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 
@@ -14,7 +15,11 @@ type QueryCmd struct {
 }
 
 func (q *QueryCmd) Run(ctx *Context) error {
-	queryModel := NewQueryModel(q.PrometheusURL, q.Query, q.Output, ctx.Timeout)
+	client, err := prometheus.NewClient(q.PrometheusURL)
+	if err != nil {
+		return err
+	}
+	queryModel := NewQueryModel(client, q.Query, q.Output, ctx.Timeout)
 
 	p := tea.NewProgram(queryModel)
 	finalModel, err := p.Run()

@@ -3,7 +3,6 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -23,16 +22,15 @@ type Client interface {
 	Series(query string, start, end time.Time, limit uint64, timeout time.Duration) ([]model.LabelSet, v1.Warnings, error)
 }
 
-func NewClient(url string) Client {
+func NewClient(url string) (Client, error) {
 	client, err := api.NewClient(api.Config{
 		Address: url,
 	})
 	if err != nil {
-		fmt.Printf("Error creating client: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("creating prometheus client: %w", err)
 	}
 	v1api := v1.NewAPI(client)
-	return &prometheusClient{v1api: v1api}
+	return &prometheusClient{v1api: v1api}, nil
 }
 
 func (c *prometheusClient) Query(query string, timeout time.Duration) (v1.Warnings, model.Vector, error) {
