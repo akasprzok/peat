@@ -1,22 +1,22 @@
 # Peat
 
-> A beautiful CLI for querying Prometheus with terminal-native visualizations
+> An interactive TUI for exploring Prometheus metrics
 
 [![CI](https://github.com/akasprzok/peat/workflows/CI/badge.svg)](https://github.com/akasprzok/peat/actions?query=workflow%3ACI)
 [![Security](https://github.com/akasprzok/peat/workflows/Security/badge.svg)](https://github.com/akasprzok/peat/actions?query=workflow%3ASecurity)
 [![Code Quality](https://github.com/akasprzok/peat/workflows/Code%20Quality/badge.svg)](https://github.com/akasprzok/peat/actions?query=workflow%3A%22Code+Quality%22)
 [![Go Report Card](https://goreportcard.com/badge/github.com/akasprzok/peat)](https://goreportcard.com/report/github.com/akasprzok/peat)
 
-Peat is a command-line tool that makes querying Prometheus metrics easy and visually appealing. It provides instant visualization of metrics with bar charts and time series graphs rendered directly in your terminal.
+Peat is a terminal user interface for querying and visualizing Prometheus metrics. It provides bar charts, time series graphs, and interactive tables rendered directly in your terminal with vim-style navigation.
 
 ## Features
 
-- 📊 **Terminal-native visualizations** - Beautiful bar charts and time series graphs using ntcharts
-- 📋 **Interactive tables** - Browse query results with an interactive table interface
-- 🎨 **Multiple output formats** - Choose between graph, table, JSON, or YAML output
-- ⚡ **Fast & lightweight** - Written in Go for performance
-- 🔍 **Query formatting** - Built-in PromQL query formatter
-- 🌐 **Flexible configuration** - Use CLI flags or environment variables
+- **Terminal-native visualizations** - Bar charts and time series graphs using ntcharts
+- **Mode-based interface** - Switch between Instant, Range, and Series modes with `Tab`
+- **Vim-style navigation** - Navigate results with `j/k/h/l` keys
+- **Interactive series highlighting** - Focus on individual series in charts and tables
+- **Query formatting** - Format PromQL queries with `f` key
+- **Fast & lightweight** - Written in Go for performance
 
 ## Installation
 
@@ -30,144 +30,59 @@ Download the latest release from the [releases page](https://github.com/akasprzo
 go install github.com/akasprzok/peat@latest
 ```
 
-## Quick Start
+## Usage
 
-Set your Prometheus URL as an environment variable:
+### Quick Start
+
+Set your Prometheus URL and launch Peat:
 
 ```bash
 export PEAT_PROMETHEUS_URL=http://localhost:9090
+peat
 ```
 
-Run an instant query with a bar chart:
+Or pass the URL directly:
 
 ```bash
-peat query 'sum(up) by (job)'
+peat --prometheus-url=http://localhost:9090
 ```
 
-Query a time range with a time series graph:
+### The TUI Interface
 
-```bash
-peat query-range 'rate(http_requests_total[5m])'
-```
+Peat provides three query modes, accessible via `Tab`:
 
-## Commands
+1. **Instant** - Execute instant queries and display results as a bar chart
+2. **Range** - Execute range queries over time and display as a time series graph
+3. **Series** - Browse series matching label selectors in an interactive table
 
-### `query` - Instant Query
+### Workflow
 
-Execute an instant Prometheus query and visualize the results.
+1. Launch `peat`
+2. Press `/` to focus the query input
+3. Type your PromQL query
+4. Press `Enter` to execute
+5. Press `i` to enter interactive mode and navigate results
+6. Press `Tab` to switch between modes
+7. Press `q` to quit
 
-```bash
-peat query 'sum(rate(http_requests_total[5m])) by (method)'
-```
+## Key Bindings
 
-**Options:**
-
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--prometheus-url` | `-p` | URL of the Prometheus endpoint | (from env) |
-| `--timeout` | `-t` | Timeout for Prometheus query | `60s` |
-| `--output` | `-o` | Output format: `graph`, `table`, `json`, `yaml` | `graph` |
-
-**Examples:**
-
-```bash
-# Bar chart visualization (default)
-peat query 'up'
-
-# Interactive table
-peat query 'up' --output table
-
-# JSON output
-peat query 'up' --output json
-
-# YAML output
-peat query 'up' --output yaml
-```
-
-### `query-range` - Range Query
-
-Execute a range query over a specified time period and display as a time series.
-
-```bash
-peat query-range 'rate(cpu_usage[5m])' --range 6h
-```
-
-**Options:**
-
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--prometheus-url` | `-p` | URL of the Prometheus endpoint | (from env) |
-| `--timeout` | `-t` | Timeout for Prometheus query | `60s` |
-| `--range` | `-r` | Time range of query (e.g., `1h`, `6h`, `1d`) | `1h` |
-| `--output` | `-o` | Output format: `graph`, `json`, `yaml` | `graph` |
-
-**Examples:**
-
-```bash
-# Time series for the last hour (default)
-peat query-range 'up'
-
-# Time series for the last 24 hours
-peat query-range 'memory_usage' --range 24h
-
-# JSON output
-peat query-range 'cpu_usage' --output json
-```
-
-### `series` - List Series
-
-List all series matching a given label matcher.
-
-```bash
-peat series 'up'
-peat series '{job="prometheus"}'
-```
-
-**Options:**
-
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--prometheus-url` | `-p` | URL of the Prometheus endpoint | (from env) |
-| `--timeout` | `-t` | Timeout for Prometheus query | `60s` |
-| `--limit` | `-l` | Limit the number of returned series | `100` |
-| `--output` | `-o` | Output format: `json`, `yaml` | `json` |
-
-**Examples:**
-
-```bash
-# List series for a metric
-peat series 'http_requests_total'
-
-# List with label matchers
-peat series '{job="api",method="GET"}'
-
-# Limit results
-peat series 'up' --limit 10
-
-# YAML output
-peat series 'up' --output yaml
-```
-
-### `format-query` - Format Query
-
-Format a PromQL query for better readability.
-
-```bash
-peat format-query 'sum(rate(http_requests_total[5m]))by(job)'
-```
-
-**Example:**
-
-```bash
-# Format a complex query
-peat format-query 'histogram_quantile(0.95,sum(rate(http_request_duration_seconds_bucket[5m]))by(le,job))'
-```
+| Key | Action |
+|-----|--------|
+| `Tab` | Cycle through query modes |
+| `Enter` | Execute query |
+| `/` | Focus query input |
+| `f` | Format PromQL query |
+| `i` | Enter interactive mode (legend/table navigation) |
+| `Esc` | Exit interactive mode |
+| `j/k` | Navigate up/down in interactive mode |
+| `h/l` | Page up/down in interactive mode |
+| `q` | Quit |
+| `Ctrl+C` | Force quit |
 
 ## Configuration
 
-### Environment Variables
-
-Configure peat using environment variables instead of command-line flags:
+Peat can be configured using environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -180,17 +95,8 @@ Configure peat using environment variables instead of command-line flags:
 export PEAT_PROMETHEUS_URL=http://prometheus.example.com:9090
 export PEAT_PROMETHEUS_TIMEOUT=30s
 
-peat query 'up'
+peat
 ```
-
-## Output Formats
-
-Peat supports multiple output formats to suit different use cases:
-
-- **`graph`** - Terminal-native visualizations (bar charts for instant queries, time series for range queries)
-- **`table`** - Interactive table view for browsing results
-- **`json`** - Machine-readable JSON format for scripting and automation
-- **`yaml`** - Human-friendly YAML format
 
 ## License
 
