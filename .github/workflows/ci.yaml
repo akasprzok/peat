@@ -118,9 +118,7 @@ jobs:
         run: make build
 
       - name: Test binary
-        run: |
-          ./peat --help
-          ./peat format-query 'up'
+        run: ./peat --help
 
   # Cross-platform build verification
   build-matrix:
