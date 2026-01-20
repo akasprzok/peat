@@ -179,4 +179,3 @@ Potential improvements:
 - Show query execution time and data point count
 - Add interactive time range selection
 - Implement table view for time series data with pagination
-

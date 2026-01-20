@@ -144,4 +144,3 @@ Potential improvements:
 - Show query execution time
 - Add progress indicators for long-running queries
 - Cache recent query results
-

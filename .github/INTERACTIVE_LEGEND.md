@@ -161,4 +161,3 @@ Potential improvements:
 - Zoom to selected series time range
 - Export selected series data
 - Search/filter in legend
-

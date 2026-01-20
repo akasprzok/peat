@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Peat is a CLI tool for querying Prometheus metrics with terminal-native visualizations. It provides bar charts for instant queries and time series graphs for range queries, along with table, JSON, and YAML output formats.
+Peat is a TUI (Terminal User Interface) for querying Prometheus metrics with terminal-native visualizations. It provides an interactive interface with mode switching, vim-style keybindings, and real-time query editing.
 
 ## Common Commands
 
@@ -32,10 +32,9 @@ make install
 
 The codebase follows a standard Go CLI structure with Kong for argument parsing and Bubble Tea for terminal UI:
 
-- **main.go** - Entry point; parses CLI args via Kong and dispatches to commands
-- **internal/commands/** - CLI command implementations using Kong's command pattern
-  - Each command struct (e.g., `QueryCmd`, `QueryRangeCmd`) has a `Run(*Context)` method
-  - Commands use Bubble Tea models for interactive output (query_model.go, query_range_model.go)
+- **main.go** - Entry point; parses CLI args via Kong and launches the TUI
+- **internal/commands/tui_model.go** - Unified Bubble Tea TUI model managing all query modes
+- **internal/commands/commands.go** - CLI struct with Kong bindings for URL, timeout, and initial query parameters
 - **internal/prometheus/** - Prometheus API client wrapper
   - Exposes `Client` interface with `Query`, `QueryRange`, and `Series` methods
   - Also contains `FormatQuery` for PromQL formatting via prometheus/promql/parser
@@ -43,6 +42,29 @@ The codebase follows a standard Go CLI structure with Kong for argument parsing 
   - `barchart.go` for instant query results
   - `timeseries.go` for range query results
 - **internal/tables/** - Interactive table display using bubble-table
+
+## TUI Overview
+
+Peat provides three query modes, switchable via `Tab`:
+
+- **Instant** - Bar chart visualization for instant queries
+- **Range** - Time series graph with interactive legend for range queries
+- **Series** - Interactive table for browsing series by label matchers
+
+## Key Bindings
+
+| Key | Action |
+|-----|--------|
+| `Tab` | Cycle through query modes |
+| `Enter` | Execute query |
+| `/` | Focus query input |
+| `f` | Format PromQL query |
+| `i` | Enter interactive mode (legend/table navigation) |
+| `Esc` | Exit interactive mode |
+| `j/k` | Navigate up/down in interactive mode |
+| `h/l` | Page up/down in interactive mode |
+| `q` | Quit |
+| `Ctrl+C` | Force quit |
 
 ## Key Dependencies
 

@@ -25,4 +25,3 @@ Add any other context, screenshots, or examples about the feature request here.
 ## Proposed implementation (optional)
 
 If you have ideas about how to implement this feature, please share them here.
-

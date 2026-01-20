@@ -1,17 +1,31 @@
 package commands
 
-import "time"
+import (
+	"time"
 
-type Context struct {
-	Timeout time.Duration
+	"github.com/akasprzok/peat/internal/prometheus"
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+// CLI represents the command-line interface for Peat.
+type CLI struct {
+	PrometheusURL string        `help:"URL of the Prometheus endpoint." short:"p" env:"PEAT_PROMETHEUS_URL" name:"prometheus-url"`
+	Timeout       time.Duration `help:"Timeout for Prometheus queries." short:"t" default:"60s"`
+	Range         time.Duration `name:"range" short:"r" help:"Initial range for range queries." default:"1h"`
+	Step          time.Duration `name:"step" short:"s" help:"Initial step interval for range queries." default:"1m"`
+	Limit         uint64        `name:"limit" short:"l" help:"Maximum number of series to return for series queries." default:"100"`
 }
 
-var Cli struct {
-	Timeout time.Duration `help:"Timeout for Prometheus queries." short:"t" default:"60s"`
+// Run starts the interactive TUI.
+func (c *CLI) Run() error {
+	client, err := prometheus.NewClient(c.PrometheusURL)
+	if err != nil {
+		return err
+	}
 
-	TUI         TUICmd         `cmd:"" default:"1" help:"Interactive TUI mode."`
-	Query       QueryCmd       `cmd:"" help:"Instant Query."`
-	QueryRange  QueryRangeCmd  `cmd:"" help:"Range Query."`
-	Series      SeriesCmd      `cmd:"" help:"Get series for matches."`
-	FormatQuery FormatQueryCmd `cmd:"" help:"Format query."`
+	model := NewTUIModel(client, c.Range, c.Step, c.Limit, c.Timeout)
+	p := tea.NewProgram(model, tea.WithAltScreen())
+
+	_, err = p.Run()
+	return err
 }
