@@ -3,12 +3,12 @@ package main
 import (
 	"os"
 
-	"github.com/akasprzok/peat/internal/commands"
+	"github.com/akasprzok/peat/internal/tui"
 	"github.com/alecthomas/kong"
 )
 
 func main() {
-	var cli commands.CLI
+	var cli tui.CLI
 	kong.Parse(&cli,
 		kong.Name("peat"),
 		kong.Description("Terminal-native Prometheus metrics viewer with interactive visualizations."),

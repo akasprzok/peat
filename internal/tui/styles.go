@@ -1,11 +1,11 @@
-package commands
+package tui
 
 import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Shared styles used across command models.
+// Shared styles used across TUI components.
 var (
 	SpinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	ErrorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
