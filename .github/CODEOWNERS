@@ -14,4 +14,3 @@
 # Build and release configuration
 /Makefile @akasprzok
 /.goreleaser.yaml @akasprzok
-

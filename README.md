@@ -80,7 +80,7 @@ peat query 'up' --output table
 # JSON output
 peat query 'up' --output json
 
-# YAML output  
+# YAML output
 peat query 'up' --output yaml
 ```
 

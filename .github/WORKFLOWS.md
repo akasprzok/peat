@@ -50,7 +50,7 @@ This document describes the GitHub Actions workflows configured for the peat pro
 
 ### 3. Security Workflow (`security.yaml`)
 
-**Triggers:** 
+**Triggers:**
 - Push to `main`
 - Pull Requests to `main`
 - Weekly schedule (Mondays at 00:00 UTC)
@@ -201,4 +201,3 @@ Fix any reported issues, commit, and push.
 - Ensure `CODECOV_TOKEN` is set in repository secrets
 - Check Codecov service status
 - The workflow continues even if upload fails (`fail_ci_if_error: false`)
-
