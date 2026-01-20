@@ -1,14 +1,19 @@
 package main
 
 import (
-	commands "github.com/akasprzok/peat/internal/commands"
+	"os"
+
+	"github.com/akasprzok/peat/internal/commands"
 	"github.com/alecthomas/kong"
 )
 
 func main() {
-	// create new time series chart
-	ctx := kong.Parse(&commands.Cli)
-	// Call the Run() method of the selected parsed command.
-	err := ctx.Run(&commands.Context{Timeout: commands.Cli.Timeout})
-	ctx.FatalIfErrorf(err)
+	var cli commands.CLI
+	kong.Parse(&cli,
+		kong.Name("peat"),
+		kong.Description("Terminal-native Prometheus metrics viewer with interactive visualizations."),
+	)
+	if err := cli.Run(); err != nil {
+		os.Exit(1)
+	}
 }
