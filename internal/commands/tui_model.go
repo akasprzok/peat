@@ -66,6 +66,7 @@ type tuiInstantResultMsg struct {
 	warnings v1.Warnings
 	vector   model.Vector
 	err      error
+	duration time.Duration
 }
 
 // tuiRangeResultMsg carries the result of a range query.
@@ -73,6 +74,7 @@ type tuiRangeResultMsg struct {
 	warnings v1.Warnings
 	matrix   model.Matrix
 	err      error
+	duration time.Duration
 }
 
 // tuiSeriesResultMsg carries the result of a series query.
@@ -80,6 +82,7 @@ type tuiSeriesResultMsg struct {
 	warnings v1.Warnings
 	series   []model.LabelSet
 	err      error
+	duration time.Duration
 }
 
 // TUIModel is the main Bubble Tea model for the interactive TUI.
@@ -94,10 +97,11 @@ type TUIModel struct {
 	mode QueryMode
 
 	// Per-mode state (indexed by QueryMode)
-	modeQueries  [3]string      // Query string for each mode
-	modeStates   [3]TUIState    // State for each mode
-	modeWarnings [3]v1.Warnings // Warnings for each mode
-	modeErrors   [3]error       // Errors for each mode
+	modeQueries   [3]string        // Query string for each mode
+	modeStates    [3]TUIState      // State for each mode
+	modeWarnings  [3]v1.Warnings   // Warnings for each mode
+	modeErrors    [3]error         // Errors for each mode
+	modeDurations [3]time.Duration // Query execution duration for each mode
 
 	// Range query parameters
 	rangeValue time.Duration
@@ -159,6 +163,21 @@ func (m TUIModel) currentWarnings() v1.Warnings {
 
 func (m TUIModel) currentError() error {
 	return m.modeErrors[m.mode]
+}
+
+func (m TUIModel) currentDuration() time.Duration {
+	return m.modeDurations[m.mode]
+}
+
+// formatDuration formats a duration with appropriate precision.
+func formatDuration(d time.Duration) string {
+	if d < time.Millisecond {
+		return fmt.Sprintf("%dµs", d.Microseconds())
+	}
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	return fmt.Sprintf("%.1fs", d.Seconds())
 }
 
 func (m TUIModel) Init() tea.Cmd {
@@ -482,11 +501,14 @@ func (m TUIModel) executeQuery() (tea.Model, tea.Cmd) {
 func (m TUIModel) executeInstantQuery() tea.Cmd {
 	query := m.queryInput.Value()
 	return func() tea.Msg {
+		start := time.Now()
 		warnings, vector, err := m.promClient.Query(query, m.timeout)
+		duration := time.Since(start)
 		return tuiInstantResultMsg{
 			warnings: warnings,
 			vector:   vector,
 			err:      err,
+			duration: duration,
 		}
 	}
 }
@@ -494,13 +516,16 @@ func (m TUIModel) executeInstantQuery() tea.Cmd {
 func (m TUIModel) executeRangeQuery() tea.Cmd {
 	query := m.queryInput.Value()
 	return func() tea.Msg {
-		end := time.Now()
-		start := end.Add(-m.rangeValue)
-		matrix, warnings, err := m.promClient.QueryRange(query, start, end, m.stepValue, m.timeout)
+		start := time.Now()
+		end := start
+		rangeStart := end.Add(-m.rangeValue)
+		matrix, warnings, err := m.promClient.QueryRange(query, rangeStart, end, m.stepValue, m.timeout)
+		duration := time.Since(start)
 		return tuiRangeResultMsg{
 			warnings: warnings,
 			matrix:   matrix,
 			err:      err,
+			duration: duration,
 		}
 	}
 }
@@ -508,13 +533,16 @@ func (m TUIModel) executeRangeQuery() tea.Cmd {
 func (m TUIModel) executeSeriesQuery() tea.Cmd {
 	query := m.queryInput.Value()
 	return func() tea.Msg {
-		end := time.Now()
-		start := end.Add(-m.rangeValue)
-		series, warnings, err := m.promClient.Series(query, start, end, m.seriesLimit, m.timeout)
+		start := time.Now()
+		end := start
+		rangeStart := end.Add(-m.rangeValue)
+		series, warnings, err := m.promClient.Series(query, rangeStart, end, m.seriesLimit, m.timeout)
+		duration := time.Since(start)
 		return tuiSeriesResultMsg{
 			warnings: warnings,
 			series:   series,
 			err:      err,
+			duration: duration,
 		}
 	}
 }
@@ -523,6 +551,7 @@ func (m TUIModel) handleInstantResult(msg tuiInstantResultMsg) (tea.Model, tea.C
 	m.modeWarnings[ModeInstant] = msg.warnings
 	m.vector = msg.vector
 	m.modeErrors[ModeInstant] = msg.err
+	m.modeDurations[ModeInstant] = msg.duration
 	m.queryInput.Focus()
 	m.focusedPane = PaneQuery
 
@@ -540,6 +569,7 @@ func (m TUIModel) handleRangeResult(msg tuiRangeResultMsg) (tea.Model, tea.Cmd) 
 	m.modeWarnings[ModeRange] = msg.warnings
 	m.matrix = msg.matrix
 	m.modeErrors[ModeRange] = msg.err
+	m.modeDurations[ModeRange] = msg.duration
 	m.queryInput.Focus()
 	m.focusedPane = PaneQuery
 
@@ -558,6 +588,7 @@ func (m TUIModel) handleSeriesResult(msg tuiSeriesResultMsg) (tea.Model, tea.Cmd
 	m.modeWarnings[ModeSeries] = msg.warnings
 	m.series = msg.series
 	m.modeErrors[ModeSeries] = msg.err
+	m.modeDurations[ModeSeries] = msg.duration
 	m.queryInput.Focus()
 	m.focusedPane = PaneQuery
 
@@ -783,13 +814,22 @@ func (m TUIModel) renderStatusBar() string {
 		paramsText = fmt.Sprintf("   Range: %s   Limit: %d", m.rangeValue, m.seriesLimit)
 	}
 
+	// Duration (show when query has completed)
+	durationText := ""
+	if m.currentState() == StateResults || m.currentState() == StateError {
+		duration := m.currentDuration()
+		if duration > 0 {
+			durationText = "   Query: " + formatDuration(duration)
+		}
+	}
+
 	statusStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("236")).
 		Foreground(lipgloss.Color("252")).
 		Width(m.width).
 		Padding(0, 1)
 
-	return statusStyle.Render(modeText + paramsText)
+	return statusStyle.Render(modeText + paramsText + durationText)
 }
 
 func (m TUIModel) renderQueryInput() string {
