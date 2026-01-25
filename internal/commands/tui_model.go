@@ -353,19 +353,8 @@ func (m TUIModel) handleTabKey() (tea.Model, tea.Cmd) {
 	m.selectedIndex = -1
 	m.legendFocused = false
 
-	// Re-render chart content for the new mode if it has results
-	if m.currentState() == StateResults {
-		switch m.mode {
-		case ModeInstant:
-			m = m.renderInstantChart()
-		case ModeRange:
-			m = m.renderRangeChart()
-		case ModeSeries:
-			m = m.renderSeriesTable()
-		case ModeLabels:
-			m = m.renderLabelsTable()
-		}
-	}
+	// Delegate to mode's OnSwitchTo for re-rendering if needed
+	m.currentMode().OnSwitchTo(&m)
 
 	return m, nil
 }
@@ -386,59 +375,13 @@ func (m TUIModel) enterInsertMode() (tea.Model, tea.Cmd) {
 }
 
 func (m TUIModel) handleInteractiveKey() (tea.Model, tea.Cmd) {
-	// Toggle interactive mode (range mode with legend entries, or series mode with series)
+	// Toggle interactive mode - delegate to current mode
 	if m.currentState() != StateResults {
 		return m, nil
 	}
 
-	if m.mode == ModeRange && len(m.legendEntries) > 0 {
-		m.legendFocused = !m.legendFocused
-		if m.legendFocused {
-			m.focusedPane = PaneLegend
-			m.queryInput.Blur()
-			m.legendTable = m.legendTable.Focused(true)
-			// Select the first series and redraw chart immediately
-			m = m.updateSelectedFromLegendTable()
-			m = m.regenerateRangeChart()
-		} else {
-			m.focusedPane = PaneQuery
-			// Stay in normal mode - don't focus query input
-			m.legendTable = m.legendTable.Focused(false)
-			m.selectedIndex = -1
-			m = m.regenerateRangeChart()
-		}
-		return m, nil
-	}
-
-	if m.mode == ModeSeries && len(m.series) > 0 {
-		m.legendFocused = !m.legendFocused
-		if m.legendFocused {
-			m.focusedPane = PaneLegend
-			m.queryInput.Blur()
-			m.seriesTable = m.seriesTable.Focused(true)
-		} else {
-			m.focusedPane = PaneQuery
-			// Stay in normal mode - don't focus query input
-			m.seriesTable = m.seriesTable.Focused(false)
-		}
-		return m, nil
-	}
-
-	if m.mode == ModeLabels && len(m.labels) > 0 {
-		m.legendFocused = !m.legendFocused
-		if m.legendFocused {
-			m.focusedPane = PaneLegend
-			m.queryInput.Blur()
-			m.labelsTable = m.labelsTable.Focused(true)
-		} else {
-			m.focusedPane = PaneQuery
-			// Stay in normal mode - don't focus query input
-			m.labelsTable = m.labelsTable.Focused(false)
-		}
-		return m, nil
-	}
-
-	return m, nil
+	cmd := m.currentMode().HandleInteractiveToggle(&m)
+	return m, cmd
 }
 
 func (m TUIModel) handleEscapeKey() (tea.Model, tea.Cmd) {
@@ -465,112 +408,8 @@ func (m TUIModel) handleFormatKey() (tea.Model, tea.Cmd) {
 }
 
 func (m TUIModel) handleLegendKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	key := msg.String()
-
-	switch key {
-	case "q":
-		return m, tea.Quit
-	case "i", "esc":
-		// In labels mode, if viewing values, go back to labels list
-		if m.mode == ModeLabels && m.viewingLabelValues {
-			m.viewingLabelValues = false
-			m.labelValues = nil
-			m.selectedLabelName = ""
-			m = m.renderLabelsTable()
-			return m, nil
-		}
-		// Exit interactive mode but stay in normal mode
-		m.legendFocused = false
-		m.focusedPane = PaneQuery
-		// Don't focus query - stay in normal mode
-		switch m.mode {
-		case ModeRange:
-			m.legendTable = m.legendTable.Focused(false)
-			m.selectedIndex = -1
-			m = m.regenerateRangeChart()
-		case ModeSeries:
-			m.seriesTable = m.seriesTable.Focused(false)
-		case ModeLabels:
-			m.labelsTable = m.labelsTable.Focused(false)
-		case ModeInstant:
-			// No table to unfocus in instant mode
-		}
-		return m, nil
-	}
-
-	// Handle series mode table navigation
-	if m.mode == ModeSeries {
-		var tableCmd tea.Cmd
-		switch key {
-		case "j":
-			m.seriesTable, tableCmd = m.seriesTable.Update(tea.KeyMsg{Type: tea.KeyDown})
-		case "k":
-			m.seriesTable, tableCmd = m.seriesTable.Update(tea.KeyMsg{Type: tea.KeyUp})
-		case "h":
-			m.seriesTable, tableCmd = m.seriesTable.Update(tea.KeyMsg{Type: tea.KeyPgUp})
-		case "l":
-			m.seriesTable, tableCmd = m.seriesTable.Update(tea.KeyMsg{Type: tea.KeyPgDown})
-		default:
-			m.seriesTable, tableCmd = m.seriesTable.Update(msg)
-		}
-		return m, tableCmd
-	}
-
-	// Handle labels mode table navigation
-	if m.mode == ModeLabels {
-		var tableCmd tea.Cmd
-		switch key {
-		case "enter":
-			// Query values for the selected label
-			if !m.viewingLabelValues {
-				highlightedRow := m.labelsTable.HighlightedRow()
-				if highlightedRow.Data != nil {
-					if labelName, ok := highlightedRow.Data["label"].(string); ok {
-						m.selectedLabelName = labelName
-						m.modeStates[ModeLabels] = StateLoading
-						return m, m.executeLabelValuesQuery(labelName)
-					}
-				}
-			}
-			return m, nil
-		case "j":
-			m.labelsTable, tableCmd = m.labelsTable.Update(tea.KeyMsg{Type: tea.KeyDown})
-		case "k":
-			m.labelsTable, tableCmd = m.labelsTable.Update(tea.KeyMsg{Type: tea.KeyUp})
-		case "h":
-			m.labelsTable, tableCmd = m.labelsTable.Update(tea.KeyMsg{Type: tea.KeyPgUp})
-		case "l":
-			m.labelsTable, tableCmd = m.labelsTable.Update(tea.KeyMsg{Type: tea.KeyPgDown})
-		default:
-			m.labelsTable, tableCmd = m.labelsTable.Update(msg)
-		}
-		return m, tableCmd
-	}
-
-	// Handle range mode legend navigation
-	oldSelected := m.selectedIndex
-
-	var tableCmd tea.Cmd
-	switch key {
-	case "j":
-		m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyDown})
-	case "k":
-		m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyUp})
-	case "h":
-		m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyPgUp})
-	case "l":
-		m.legendTable, tableCmd = m.legendTable.Update(tea.KeyMsg{Type: tea.KeyPgDown})
-	default:
-		m.legendTable, tableCmd = m.legendTable.Update(msg)
-	}
-
-	m = m.updateSelectedFromLegendTable()
-
-	if oldSelected != m.selectedIndex {
-		m = m.regenerateRangeChart()
-	}
-
-	return m, tableCmd
+	cmd := m.currentMode().HandleLegendKey(&m, msg)
+	return m, cmd
 }
 
 func (m TUIModel) executeQuery() (tea.Model, tea.Cmd) {
@@ -581,17 +420,8 @@ func (m TUIModel) executeQuery() (tea.Model, tea.Cmd) {
 	m.modeWarnings[m.mode] = nil
 	m.queryInput.Blur()
 
-	switch m.mode {
-	case ModeInstant:
-		return m, m.executeInstantQuery()
-	case ModeRange:
-		return m, m.executeRangeQuery()
-	case ModeSeries:
-		return m, m.executeSeriesQuery()
-	case ModeLabels:
-		return m, m.executeLabelsQuery()
-	}
-	return m, nil
+	cmd := m.currentMode().ExecuteQuery(&m)
+	return m, cmd
 }
 
 func (m TUIModel) executeInstantQuery() tea.Cmd {
@@ -950,6 +780,17 @@ func (m TUIModel) getChartWidth() int {
 	return width
 }
 
+func (m TUIModel) getTerminalWidth() int {
+	if m.width > 0 {
+		return m.width
+	}
+	termWidth, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err == nil && termWidth > 0 {
+		return termWidth
+	}
+	return DefaultTerminalWidth
+}
+
 func (m *TUIModel) createLegendTable(maxRows int) {
 	if len(m.legendEntries) == 0 {
 		return
@@ -1024,6 +865,7 @@ func (m TUIModel) View() string {
 
 	// Results status bar (latency, etc.)
 	s.WriteString(m.renderResultsStatusBar())
+	s.WriteString("\n")
 
 	// Help bar
 	s.WriteString(m.renderHelpBar())
@@ -1058,23 +900,13 @@ func (m TUIModel) renderStatusBar() string {
 		seriesStyle.Render(" /series "),
 		labelsStyle.Render(" /labels "))
 
-	// Parameters (show for range, series, and labels modes)
-	paramsText := ""
-	switch m.mode {
-	case ModeInstant:
-		// No additional params for instant mode
-	case ModeRange:
-		paramsText = fmt.Sprintf("   Range: %s   Step: %s", m.rangeValue, m.stepValue)
-	case ModeSeries:
-		paramsText = fmt.Sprintf("   Range: %s   Limit: %d", m.rangeValue, m.seriesLimit)
-	case ModeLabels:
-		paramsText = fmt.Sprintf("   Range: %s", m.rangeValue)
-	}
+	// Get mode-specific parameters
+	paramsText := m.currentMode().RenderStatusParams(&m)
 
 	statusStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("236")).
 		Foreground(lipgloss.Color("252")).
-		Width(m.width).
+		Width(m.getTerminalWidth()).
 		Padding(0, 1)
 
 	return statusStyle.Render(modeText + paramsText)
@@ -1115,8 +947,8 @@ func (m TUIModel) renderResults() string {
 func (TUIModel) renderEmptyState() string {
 	emptyStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
-		Padding(2, 4)
-	return emptyStyle.Render("Enter a PromQL query and press Enter to execute")
+		Padding(0, 1)
+	return emptyStyle.Render(" ")
 }
 
 func (m TUIModel) renderLoadingState() string {
@@ -1130,141 +962,46 @@ func (m TUIModel) renderErrorState() string {
 }
 
 func (m TUIModel) renderResultsContent() string {
-	var s strings.Builder
-
-	// Warnings
-	warnings := m.currentWarnings()
-	if len(warnings) > 0 {
-		s.WriteString("\n")
-		s.WriteString(WarningStyle.Render("Warnings:\n"))
-		for _, w := range warnings {
-			s.WriteString(WarningStyle.Render(fmt.Sprintf("  - %s\n", w)))
-		}
-	}
-
-	// Series mode: render table directly
-	if m.mode == ModeSeries {
-		tableStyle := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("63")).
-			Padding(0, 1)
-
-		if m.legendFocused {
-			tableStyle = tableStyle.BorderForeground(lipgloss.Color("205"))
-		}
-
-		s.WriteString(tableStyle.Render(m.seriesTable.View()))
-		s.WriteString("\n")
-		s.WriteString(fmt.Sprintf("  %d series found\n", len(m.series)))
-		return s.String()
-	}
-
-	// Labels mode: render table directly
-	if m.mode == ModeLabels {
-		tableStyle := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("63")).
-			Padding(0, 1)
-
-		if m.legendFocused {
-			tableStyle = tableStyle.BorderForeground(lipgloss.Color("205"))
-		}
-
-		s.WriteString(tableStyle.Render(m.labelsTable.View()))
-		s.WriteString("\n")
-		if m.viewingLabelValues {
-			s.WriteString(fmt.Sprintf("  %d values for label '%s'\n", len(m.labelValues), m.selectedLabelName))
-		} else {
-			s.WriteString(fmt.Sprintf("  %d labels found\n", len(m.labels)))
-		}
-		return s.String()
-	}
-
-	// Chart (instant and range modes)
-	chartStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("63")).
-		Padding(0, 1)
-
-	if m.focusedPane == PaneResults {
-		chartStyle = chartStyle.BorderForeground(lipgloss.Color("205"))
-	}
-
-	s.WriteString(chartStyle.Render(m.chartContent))
-
-	// Legend (range mode only)
-	if m.mode == ModeRange && len(m.legendEntries) > 0 {
-		legendStyle := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("63")).
-			Padding(0, 1).
-			MarginTop(1)
-
-		if m.legendFocused {
-			legendStyle = legendStyle.BorderForeground(lipgloss.Color("205"))
-		}
-
-		s.WriteString("\n")
-		s.WriteString(legendStyle.Render(m.legendTable.View()))
-	}
-
-	s.WriteString("\n")
-	return s.String()
+	return m.currentMode().RenderResultsContent(&m)
 }
 
 func (m TUIModel) renderResultsStatusBar() string {
-	if m.currentState() != StateResults && m.currentState() != StateError {
-		return ""
-	}
-	duration := m.currentDuration()
-	if duration == 0 {
-		return ""
-	}
-
 	statusStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("236")).
-		Foreground(lipgloss.Color("252")).
-		Width(m.width).
-		Padding(0, 1)
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("63")).
+		Padding(0, 1).
+		MarginTop(1)
 
-	return statusStyle.Render("  Latency: "+formatDuration(duration)) + "\n"
+	duration := m.currentDuration()
+	content := " Latency: "
+	if duration != 0 {
+		content += formatDuration(duration)
+	}
+
+	// Add mode-specific status bar content
+	content += m.currentMode().RenderResultsStatusBar(&m)
+
+	return statusStyle.Render(content)
 }
 
 func (m TUIModel) renderHelpBar() string {
 	helpStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("236")).
 		Foreground(lipgloss.Color("252")).
-		Width(m.width).
+		Width(m.getTerminalWidth()).
 		Padding(0, 1)
 
-	var helpText string
+	// Determine the focused state
+	var focusedState string
 	switch {
 	case m.legendFocused:
-		if m.mode == ModeLabels {
-			if m.viewingLabelValues {
-				helpText = "  j/k: navigate | h/l: page | esc: back | i: exit | q: quit"
-			} else {
-				helpText = "  j/k: navigate | h/l: page | Enter: values | i/esc: exit | q: quit"
-			}
-		} else {
-			helpText = "  j/k: navigate | h/l: page | i/esc: exit | q: quit"
-		}
+		focusedState = "legend"
 	case m.insertMode:
-		helpText = "  Editing query | Enter: run | Esc: exit | Tab: mode"
+		focusedState = "insert"
 	default:
-		// Normal mode
-		helpText = "  Tab: mode | Enter: run | /: edit query | f: format"
-		if m.currentState() == StateResults {
-			if m.mode == ModeRange && len(m.legendEntries) > 0 {
-				helpText += " | i: legend"
-			} else if m.mode == ModeSeries && len(m.series) > 0 {
-				helpText += " | i: table"
-			} else if m.mode == ModeLabels && len(m.labels) > 0 {
-				helpText += " | i: table"
-			}
-		}
-		helpText += " | q: quit"
+		focusedState = "normal"
 	}
 
+	helpText := m.currentMode().RenderHelpText(&m, focusedState)
 	return helpStyle.Render(helpText)
 }
