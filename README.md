@@ -12,7 +12,7 @@ Peat is a terminal user interface for querying and visualizing Prometheus metric
 ## Features
 
 - **Terminal-native visualizations** - Bar charts and time series graphs using ntcharts
-- **Mode-based interface** - Switch between Instant, Range, and Series modes with `Tab`
+- **Mode-based interface** - Switch between /query, /query_range, and /series modes with `Tab`
 - **Vim-style navigation** - Navigate results with `j/k/h/l` keys
 - **Interactive series highlighting** - Focus on individual series in charts and tables
 - **Query formatting** - Format PromQL queries with `f` key
@@ -51,34 +51,38 @@ peat --prometheus-url=http://localhost:9090
 
 Peat provides three query modes, accessible via `Tab`:
 
-1. **Instant** - Execute instant queries and display results as a bar chart
-2. **Range** - Execute range queries over time and display as a time series graph
-3. **Series** - Browse series matching label selectors in an interactive table
+1. **/query** - Execute instant queries and display results as a bar chart
+2. **/query_range** - Execute range queries over time and display as a time series graph
+3. **/series** - Browse series matching label selectors in an interactive table
 
 ### Workflow
 
-1. Launch `peat`
-2. Press `/` to focus the query input
-3. Type your PromQL query
-4. Press `Enter` to execute
-5. Press `i` to enter interactive mode and navigate results
-6. Press `Tab` to switch between modes
-7. Press `q` to quit
+1. Launch `peat` (starts in insert mode)
+2. Type your PromQL query
+3. Press `Enter` to execute (exits to normal mode)
+4. Press `i` to enter interactive mode and navigate results
+5. Press `Esc` to exit interactive mode
+6. Press `/` to edit your query again
+7. Press `Tab` to switch between modes
+8. Press `q` to quit
 
 ## Key Bindings
 
-| Key | Action |
-|-----|--------|
-| `Tab` | Cycle through query modes |
-| `Enter` | Execute query |
-| `/` | Focus query input |
-| `f` | Format PromQL query |
-| `i` | Enter interactive mode (legend/table navigation) |
-| `Esc` | Exit interactive mode |
-| `j/k` | Navigate up/down in interactive mode |
-| `h/l` | Page up/down in interactive mode |
-| `q` | Quit |
-| `Ctrl+C` | Force quit |
+Peat uses vim-style modal editing with **Insert Mode** (for editing queries) and **Normal Mode** (for navigation and commands).
+
+| Key | Mode | Action |
+|-----|------|--------|
+| `Tab` | Any | Cycle through query modes |
+| `Enter` | Any | Execute query (exits insert mode) |
+| `Esc` | Insert | Exit insert mode (return to normal mode) |
+| `Esc` | Interactive | Exit interactive mode |
+| `/` | Normal | Enter insert mode (edit query) |
+| `f` | Normal | Format PromQL query |
+| `i` | Normal | Toggle interactive mode (legend/table) |
+| `j/k` | Interactive | Navigate up/down |
+| `h/l` | Interactive | Page up/down |
+| `q` | Normal | Quit |
+| `Ctrl+C` | Any | Force quit |
 
 ## Configuration
 

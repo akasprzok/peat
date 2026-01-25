@@ -20,6 +20,8 @@ type Client interface {
 	Query(query string, timeout time.Duration) (v1.Warnings, model.Vector, error)
 	QueryRange(query string, start, end time.Time, step time.Duration, timeout time.Duration) (model.Matrix, v1.Warnings, error)
 	Series(query string, start, end time.Time, limit uint64, timeout time.Duration) ([]model.LabelSet, v1.Warnings, error)
+	LabelNames(start, end time.Time, timeout time.Duration) ([]string, v1.Warnings, error)
+	LabelValues(labelName string, start, end time.Time, timeout time.Duration) ([]string, v1.Warnings, error)
 }
 
 func NewClient(url string) (Client, error) {
@@ -85,6 +87,31 @@ func (c *prometheusClient) Series(query string, start, end time.Time, limit uint
 		return series, warnings, err
 	}
 	return series, warnings, nil
+}
+
+func (c *prometheusClient) LabelNames(start, end time.Time, timeout time.Duration) ([]string, v1.Warnings, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	labels, warnings, err := c.v1api.LabelNames(ctx, []string{}, start, end, v1.WithTimeout(timeout))
+	if err != nil {
+		return nil, warnings, err
+	}
+	return labels, warnings, nil
+}
+
+func (c *prometheusClient) LabelValues(labelName string, start, end time.Time, timeout time.Duration) ([]string, v1.Warnings, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	values, warnings, err := c.v1api.LabelValues(ctx, labelName, []string{}, start, end, v1.WithTimeout(timeout))
+	if err != nil {
+		return nil, warnings, err
+	}
+	// Convert model.LabelValue slice to string slice
+	result := make([]string, len(values))
+	for i, v := range values {
+		result[i] = string(v)
+	}
+	return result, warnings, nil
 }
 
 func FormatQuery(query string) string {

@@ -9,9 +9,11 @@ import (
 
 // MockClient is a mock implementation of the Client interface for testing.
 type MockClient struct {
-	QueryFunc      func(query string, timeout time.Duration) (v1.Warnings, model.Vector, error)
-	QueryRangeFunc func(query string, start, end time.Time, step time.Duration, timeout time.Duration) (model.Matrix, v1.Warnings, error)
-	SeriesFunc     func(query string, start, end time.Time, limit uint64, timeout time.Duration) ([]model.LabelSet, v1.Warnings, error)
+	QueryFunc       func(query string, timeout time.Duration) (v1.Warnings, model.Vector, error)
+	QueryRangeFunc  func(query string, start, end time.Time, step time.Duration, timeout time.Duration) (model.Matrix, v1.Warnings, error)
+	SeriesFunc      func(query string, start, end time.Time, limit uint64, timeout time.Duration) ([]model.LabelSet, v1.Warnings, error)
+	LabelNamesFunc  func(start, end time.Time, timeout time.Duration) ([]string, v1.Warnings, error)
+	LabelValuesFunc func(labelName string, start, end time.Time, timeout time.Duration) ([]string, v1.Warnings, error)
 }
 
 func (m *MockClient) Query(query string, timeout time.Duration) (v1.Warnings, model.Vector, error) {
@@ -31,6 +33,20 @@ func (m *MockClient) QueryRange(query string, start, end time.Time, step time.Du
 func (m *MockClient) Series(query string, start, end time.Time, limit uint64, timeout time.Duration) ([]model.LabelSet, v1.Warnings, error) {
 	if m.SeriesFunc != nil {
 		return m.SeriesFunc(query, start, end, limit, timeout)
+	}
+	return nil, nil, nil
+}
+
+func (m *MockClient) LabelNames(start, end time.Time, timeout time.Duration) ([]string, v1.Warnings, error) {
+	if m.LabelNamesFunc != nil {
+		return m.LabelNamesFunc(start, end, timeout)
+	}
+	return nil, nil, nil
+}
+
+func (m *MockClient) LabelValues(labelName string, start, end time.Time, timeout time.Duration) ([]string, v1.Warnings, error) {
+	if m.LabelValuesFunc != nil {
+		return m.LabelValuesFunc(labelName, start, end, timeout)
 	}
 	return nil, nil, nil
 }

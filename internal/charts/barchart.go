@@ -2,10 +2,8 @@ package charts
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/NimbleMarkets/ntcharts/barchart"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/prometheus/common/model"
 )
 
@@ -15,7 +13,7 @@ func Barchart(vector model.Vector, width int) string {
 		barData = append(barData, barchart.BarData{
 			Label: fmt.Sprintf("%s (%d)", sample.Metric.String(), int(sample.Value)),
 			Values: []barchart.BarValue{
-				{Name: sample.Metric.String(), Value: float64(sample.Value), Style: lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))}, // green
+				{Name: sample.Metric.String(), Value: float64(sample.Value), Style: SeriesStyle(i)},
 			},
 		})
 	}

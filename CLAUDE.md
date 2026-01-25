@@ -47,24 +47,27 @@ The codebase follows a standard Go CLI structure with Kong for argument parsing 
 
 Peat provides three query modes, switchable via `Tab`:
 
-- **Instant** - Bar chart visualization for instant queries
-- **Range** - Time series graph with interactive legend for range queries
-- **Series** - Interactive table for browsing series by label matchers
+- **/query** - Bar chart visualization for instant queries
+- **/query_range** - Time series graph with interactive legend for range queries
+- **/series** - Interactive table for browsing series by label matchers
 
 ## Key Bindings
 
-| Key | Action |
-|-----|--------|
-| `Tab` | Cycle through query modes |
-| `Enter` | Execute query |
-| `/` | Focus query input |
-| `f` | Format PromQL query |
-| `i` | Enter interactive mode (legend/table navigation) |
-| `Esc` | Exit interactive mode |
-| `j/k` | Navigate up/down in interactive mode |
-| `h/l` | Page up/down in interactive mode |
-| `q` | Quit |
-| `Ctrl+C` | Force quit |
+Peat uses vim-style modal editing with **Insert Mode** (for editing queries) and **Normal Mode** (for navigation and commands). The app starts in insert mode so users can immediately type.
+
+| Key | Mode | Action |
+|-----|------|--------|
+| `Tab` | Any | Cycle through query modes |
+| `Enter` | Any | Execute query (exits insert mode) |
+| `Esc` | Insert | Exit insert mode (return to normal mode) |
+| `Esc` | Interactive | Exit interactive mode |
+| `/` | Normal | Enter insert mode (edit query) |
+| `f` | Normal | Format PromQL query |
+| `i` | Normal | Toggle interactive mode (legend/table) |
+| `j/k` | Interactive | Navigate up/down |
+| `h/l` | Interactive | Page up/down |
+| `q` | Normal | Quit |
+| `Ctrl+C` | Any | Force quit |
 
 ## Key Dependencies
 

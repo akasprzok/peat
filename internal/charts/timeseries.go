@@ -2,7 +2,6 @@ package charts
 
 import (
 	"math"
-	"strconv"
 
 	"github.com/NimbleMarkets/ntcharts/canvas/runes"
 	"github.com/NimbleMarkets/ntcharts/linechart/timeserieslinechart"
@@ -11,13 +10,13 @@ import (
 )
 
 var lineStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("4")) // blue
+	Foreground(SeriesColor(0)) // blue from accessible palette
 
 var axisStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("3")) // yellow
+	Foreground(AxisColor)
 
 var labelStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("6")) // cyan
+	Foreground(LabelColor)
 
 // LegendEntry represents a single entry in the time series legend
 type LegendEntry struct {
@@ -35,7 +34,11 @@ func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend []Leg
 func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex int) (chart string, legend []LegendEntry) {
 	minYValue := model.SampleValue(math.MaxFloat64)
 	maxYValue := model.SampleValue(-math.MaxFloat64)
-	for _, stream := range matrix {
+	for i, stream := range matrix {
+		// Skip non-selected series when calculating range
+		if selectedIndex >= 0 && i != selectedIndex {
+			continue
+		}
 		for _, sample := range stream.Values {
 			if sample.Value < minYValue {
 				minYValue = sample.Value
@@ -70,13 +73,13 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 		switch {
 		case selectedIndex == -1:
 			// No selection, show all in their original colors
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(i)))
+			style = SeriesStyle(i)
 		case i == selectedIndex:
 			// Selected series will be drawn separately below for layering
 			continue
 		default:
-			// Non-selected series are greyed out
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+			// Non-selected series are hidden
+			continue
 		}
 
 		lc.SetDataSetStyle(stream.Metric.String(), style)
@@ -89,21 +92,18 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 		}
 	}
 
-	// If a series is selected, draw it a second time to ensure it appears on top
+	// If a series is selected, draw it (non-selected series were skipped above)
 	if selectedIndex >= 0 && selectedIndex < len(matrix) {
 		stream := matrix[selectedIndex]
-		selectedStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("231")) // bright white for high contrast
+		style := SeriesStyle(selectedIndex) // Use original color
 
-		// Use a temporary unique name to draw it again
-		tempName := stream.Metric.String() + "_selected"
-		lc.SetDataSetStyle(tempName, selectedStyle)
+		lc.SetDataSetStyle(stream.Metric.String(), style)
 		for _, sample := range stream.Values {
 			point := timeserieslinechart.TimePoint{
 				Time:  sample.Timestamp.Time(),
 				Value: float64(sample.Value),
 			}
-			lc.PushDataSet(tempName, point)
+			lc.PushDataSet(stream.Metric.String(), point)
 		}
 	}
 
