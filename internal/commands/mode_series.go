@@ -12,7 +12,7 @@ import (
 type SeriesMode struct{}
 
 func (SeriesMode) Name() string {
-	return "/series"
+	return "4) /series"
 }
 
 func (SeriesMode) HandleInteractiveToggle(m *TUIModel) tea.Cmd {
@@ -104,23 +104,6 @@ func (SeriesMode) RenderResultsStatusBar(m *TUIModel) string {
 		return fmt.Sprintf(" | Series: %d", len(m.series))
 	}
 	return ""
-}
-
-func (SeriesMode) RenderHelpText(m *TUIModel, focusedState string) string {
-	switch focusedState {
-	case "legend":
-		return "  j/k: navigate | h/l: page | i/esc: exit | q: quit"
-	case "insert":
-		return " Editing query | Enter: run | Esc: exit | Tab: mode"
-	default:
-		// Normal mode
-		helpText := "  Tab: mode | Enter: run | /: edit query | f: format"
-		if len(m.series) > 0 {
-			helpText += " | i: table"
-		}
-		helpText += " | q: quit"
-		return helpText
-	}
 }
 
 func (SeriesMode) OnSwitchTo(m *TUIModel) {

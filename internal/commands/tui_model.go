@@ -139,6 +139,7 @@ type TUIModel struct {
 	labelValues        []string // Values for selected label
 	selectedLabelName  string   // Currently selected label name
 	viewingLabelValues bool     // True when showing values instead of names
+	selectedLabelIndex int      // Index of selected label row (for restoring position)
 
 	// Rendered content
 	chartContent  string
@@ -149,12 +150,13 @@ type TUIModel struct {
 	selectedIndex int // -1 means no selection
 
 	// UI state
-	width         int
-	height        int
-	focusedPane   FocusedPane
-	insertMode    bool // true when editing query (insert mode), false for normal mode
-	spinner       spinner.Model
-	legendFocused bool
+	width                int
+	height               int
+	focusedPane          FocusedPane
+	insertMode           bool // true when editing query (insert mode), false for normal mode
+	spinner              spinner.Model
+	legendFocused        bool
+	showShortcutsOverlay bool
 }
 
 // NewTUIModel creates a new TUI model.
@@ -266,6 +268,15 @@ func (m TUIModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
+	// Handle shortcuts overlay - dismiss on any key except quit keys
+	if m.showShortcutsOverlay {
+		if msg.String() == "q" {
+			return m, tea.Quit
+		}
+		m.showShortcutsOverlay = false
+		return m, nil
+	}
+
 	// State-dependent keys
 	switch m.currentState() {
 	case StateLoading:
@@ -325,26 +336,48 @@ func (m TUIModel) handleInputOrResultsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFormatKey()
 	case "esc":
 		return m.handleEscapeKey()
+	case "1", "2", "3", "4":
+		return m.handleNumberKey(msg.String())
+	case "?":
+		m.showShortcutsOverlay = true
+		return m, nil
 	}
 
 	return m, nil
 }
 
 func (m TUIModel) handleTabKey() (tea.Model, tea.Cmd) {
+	// Cycle through modes: Instant -> Range -> Series -> Labels -> Instant
+	nextMode := m.mode + 1
+	if nextMode > ModeLabels {
+		nextMode = ModeInstant
+	}
+	return m.switchToMode(nextMode)
+}
+
+func (m TUIModel) handleNumberKey(key string) (tea.Model, tea.Cmd) {
+	modeMap := map[string]QueryMode{
+		"1": ModeInstant,
+		"2": ModeRange,
+		"3": ModeSeries,
+		"4": ModeLabels,
+	}
+	if mode, ok := modeMap[key]; ok {
+		return m.switchToMode(mode)
+	}
+	return m, nil
+}
+
+func (m TUIModel) switchToMode(newMode QueryMode) (tea.Model, tea.Cmd) {
+	if newMode == m.mode {
+		return m, nil
+	}
+
 	// Save current query before switching
 	m.modeQueries[m.mode] = m.queryInput.Value()
 
-	// Cycle through modes: Instant -> Range -> Series -> Labels -> Instant
-	switch m.mode {
-	case ModeInstant:
-		m.mode = ModeRange
-	case ModeRange:
-		m.mode = ModeSeries
-	case ModeSeries:
-		m.mode = ModeLabels
-	case ModeLabels:
-		m.mode = ModeInstant
-	}
+	// Switch to new mode
+	m.mode = newMode
 
 	// Restore new mode's query
 	m.queryInput.SetValue(m.modeQueries[m.mode])
@@ -756,7 +789,8 @@ func (m TUIModel) renderLabelsTable() TUIModel {
 		WithRows(rows).
 		WithPageSize(15).
 		Focused(m.legendFocused).
-		WithBaseStyle(lipgloss.NewStyle())
+		WithBaseStyle(lipgloss.NewStyle()).
+		WithHighlightedRow(m.selectedLabelIndex)
 
 	return m
 }
@@ -850,6 +884,18 @@ func (m TUIModel) updateSelectedFromLegendTable() TUIModel {
 }
 
 func (m TUIModel) View() string {
+	// Show shortcuts overlay if active
+	if m.showShortcutsOverlay {
+		overlay := m.renderShortcutsOverlay()
+		return lipgloss.Place(
+			m.getTerminalWidth(),
+			m.height,
+			lipgloss.Center,
+			lipgloss.Center,
+			overlay,
+		)
+	}
+
 	var s strings.Builder
 
 	// Status bar
@@ -895,10 +941,10 @@ func (m TUIModel) renderStatusBar() string {
 	}
 
 	modeText := fmt.Sprintf("  Mode: %s | %s | %s | %s",
-		instantStyle.Render(" /query "),
-		rangeStyle.Render(" /query_range "),
-		seriesStyle.Render(" /series "),
-		labelsStyle.Render(" /labels "))
+		instantStyle.Render(" 1 /query "),
+		rangeStyle.Render(" 2 /query_range "),
+		seriesStyle.Render(" 3 /series "),
+		labelsStyle.Render(" 4 /labels "))
 
 	// Get mode-specific parameters
 	paramsText := m.currentMode().RenderStatusParams(&m)
@@ -973,9 +1019,9 @@ func (m TUIModel) renderResultsStatusBar() string {
 		MarginTop(1)
 
 	duration := m.currentDuration()
-	content := " Latency: "
+	content := ""
 	if duration != 0 {
-		content += formatDuration(duration)
+		content = " Latency: " + formatDuration(duration)
 	}
 
 	// Add mode-specific status bar content
@@ -991,17 +1037,87 @@ func (m TUIModel) renderHelpBar() string {
 		Width(m.getTerminalWidth()).
 		Padding(0, 1)
 
-	// Determine the focused state
-	var focusedState string
-	switch {
-	case m.legendFocused:
-		focusedState = "legend"
-	case m.insertMode:
-		focusedState = "insert"
-	default:
-		focusedState = "normal"
+	var helpText string
+	if m.insertMode {
+		helpText = "esc: normal | ?: shortcuts | ctrl+c/q: quit"
+	} else {
+		helpText = "/: edit | ?: shortcuts | q: quit"
 	}
 
-	helpText := m.currentMode().RenderHelpText(&m, focusedState)
 	return helpStyle.Render(helpText)
+}
+
+func (TUIModel) renderShortcutsOverlay() string {
+	accentColor := lipgloss.Color("205")
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(accentColor).
+		MarginBottom(1)
+
+	categoryStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(accentColor).
+		MarginTop(1)
+
+	keyStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252"))
+
+	descStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("245"))
+
+	var content strings.Builder
+
+	content.WriteString(titleStyle.Render("Keyboard Shortcuts"))
+	content.WriteString("\n")
+
+	// Global shortcuts
+	content.WriteString(categoryStyle.Render("Global"))
+	content.WriteString("\n")
+	shortcuts := []struct{ key, desc string }{
+		{"Tab", "Cycle through modes"},
+		{"1-4", "Switch to mode directly"},
+		{"Enter", "Execute query"},
+		{"q", "Quit"},
+		{"Ctrl+C", "Force quit"},
+	}
+	for _, s := range shortcuts {
+		content.WriteString(fmt.Sprintf("  %s  %s\n", keyStyle.Render(fmt.Sprintf("%-8s", s.key)), descStyle.Render(s.desc)))
+	}
+
+	// Query editing
+	content.WriteString(categoryStyle.Render("Query Editing"))
+	content.WriteString("\n")
+	editShortcuts := []struct{ key, desc string }{
+		{"/", "Enter insert mode"},
+		{"Esc", "Exit insert mode"},
+		{"f", "Format PromQL query"},
+	}
+	for _, s := range editShortcuts {
+		content.WriteString(fmt.Sprintf("  %s  %s\n", keyStyle.Render(fmt.Sprintf("%-8s", s.key)), descStyle.Render(s.desc)))
+	}
+
+	// Interactive mode
+	content.WriteString(categoryStyle.Render("Interactive Mode"))
+	content.WriteString("\n")
+	interactiveShortcuts := []struct{ key, desc string }{
+		{"i", "Toggle interactive mode"},
+		{"j/k", "Navigate up/down"},
+		{"h/l", "Page up/down"},
+		{"Esc", "Exit interactive mode"},
+	}
+	for _, s := range interactiveShortcuts {
+		content.WriteString(fmt.Sprintf("  %s  %s\n", keyStyle.Render(fmt.Sprintf("%-8s", s.key)), descStyle.Render(s.desc)))
+	}
+
+	content.WriteString("\n")
+	content.WriteString(descStyle.Render("Press any key to close"))
+
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(accentColor).
+		Padding(1, 2)
+
+	return boxStyle.Render(content.String())
 }

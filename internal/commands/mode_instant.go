@@ -12,7 +12,7 @@ import (
 type InstantMode struct{}
 
 func (InstantMode) Name() string {
-	return "/query"
+	return "1) /query"
 }
 
 func (InstantMode) HandleInteractiveToggle(m *TUIModel) tea.Cmd {
@@ -64,16 +64,6 @@ func (InstantMode) RenderResultsContent(m *TUIModel) string {
 func (InstantMode) RenderResultsStatusBar(m *TUIModel) string {
 	// No additional status bar content for instant mode
 	return ""
-}
-
-func (InstantMode) RenderHelpText(m *TUIModel, focusedState string) string {
-	switch focusedState {
-	case "insert":
-		return " Editing query | Enter: run | Esc: exit | Tab: mode"
-	default:
-		// Normal mode - instant has no interactive elements
-		return "  Tab: mode | Enter: run | /: edit query | f: format | q: quit"
-	}
 }
 
 func (InstantMode) OnSwitchTo(m *TUIModel) {

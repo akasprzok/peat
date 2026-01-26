@@ -12,7 +12,7 @@ import (
 type RangeMode struct{}
 
 func (RangeMode) Name() string {
-	return "/query_range"
+	return "3) /query_range"
 }
 
 func (RangeMode) HandleInteractiveToggle(m *TUIModel) tea.Cmd {
@@ -133,23 +133,6 @@ func (RangeMode) RenderResultsContent(m *TUIModel) string {
 func (RangeMode) RenderResultsStatusBar(m *TUIModel) string {
 	// No additional status bar content for range mode
 	return ""
-}
-
-func (RangeMode) RenderHelpText(m *TUIModel, focusedState string) string {
-	switch focusedState {
-	case "legend":
-		return "  j/k: navigate | h/l: page | i/esc: exit | q: quit"
-	case "insert":
-		return " Editing query | Enter: run | Esc: exit | Tab: mode"
-	default:
-		// Normal mode
-		helpText := "  Tab: mode | Enter: run | /: edit query | f: format"
-		if len(m.legendEntries) > 0 {
-			helpText += " | i: legend"
-		}
-		helpText += " | q: quit"
-		return helpText
-	}
 }
 
 func (RangeMode) OnSwitchTo(m *TUIModel) {

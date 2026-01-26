@@ -12,7 +12,7 @@ import (
 type LabelsMode struct{}
 
 func (LabelsMode) Name() string {
-	return "/labels"
+	return "2) /labels"
 }
 
 func (LabelsMode) HandleInteractiveToggle(m *TUIModel) tea.Cmd {
@@ -59,6 +59,7 @@ func (LabelsMode) HandleLegendKey(m *TUIModel, msg tea.KeyMsg) tea.Cmd {
 			highlightedRow := m.labelsTable.HighlightedRow()
 			if highlightedRow.Data != nil {
 				if labelName, ok := highlightedRow.Data["label"].(string); ok {
+					m.selectedLabelIndex = m.labelsTable.GetHighlightedRowIndex()
 					m.selectedLabelName = labelName
 					m.modeStates[ModeLabels] = StateLoading
 					return m.executeLabelValuesQuery(labelName)
@@ -116,38 +117,15 @@ func (LabelsMode) RenderResultsContent(m *TUIModel) string {
 	}
 
 	s.WriteString(tableStyle.Render(m.labelsTable.View()))
-	if m.viewingLabelValues {
-		fmt.Fprintf(&s, "  %d values for label '%s'\n", len(m.labelValues), m.selectedLabelName)
-	} else {
-		fmt.Fprintf(&s, "  %d labels found\n", len(m.labels))
-	}
 	s.WriteString("\n")
 	return s.String()
 }
 
 func (LabelsMode) RenderResultsStatusBar(m *TUIModel) string {
-	// No additional status bar content for labels mode
-	return ""
-}
-
-func (LabelsMode) RenderHelpText(m *TUIModel, focusedState string) string {
-	switch focusedState {
-	case "legend":
-		if m.viewingLabelValues {
-			return "  j/k: navigate | h/l: page | esc: back | i: exit | q: quit"
-		}
-		return "  j/k: navigate | h/l: page | Enter: values | i/esc: exit | q: quit"
-	case "insert":
-		return " Editing query | Enter: run | Esc: exit | Tab: mode"
-	default:
-		// Normal mode
-		helpText := "  Tab: mode | Enter: run | /: edit query | f: format"
-		if len(m.labels) > 0 {
-			helpText += " | i: table"
-		}
-		helpText += " | q: quit"
-		return helpText
+	if m.viewingLabelValues {
+		return fmt.Sprintf(" | Labels: %d | Values : %d", len(m.labels), len(m.labelValues))
 	}
+	return fmt.Sprintf(" | Labels: %d ", len(m.labels))
 }
 
 func (LabelsMode) OnSwitchTo(m *TUIModel) {

@@ -30,10 +30,6 @@ type Mode interface {
 	// RenderResultsStatusBar returns additional status bar content for results
 	RenderResultsStatusBar(m *TUIModel) string
 
-	// RenderHelpText returns the help text based on the current focused state
-	// focusedState can be "legend", "insert", or "normal"
-	RenderHelpText(m *TUIModel, focusedState string) string
-
 	// OnSwitchTo is called when switching to this mode
 	OnSwitchTo(m *TUIModel)
 }
