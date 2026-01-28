@@ -8,4 +8,7 @@ const (
 
 	// DefaultQueryStep is the default step interval for range queries.
 	DefaultQueryStep = time.Minute
+
+	// ChartWidthPadding is the horizontal padding subtracted from terminal width for chart rendering.
+	ChartWidthPadding = 6
 )
