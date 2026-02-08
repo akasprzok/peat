@@ -125,6 +125,7 @@ func (m TUIModel) handleRangeResult(msg tuiRangeResultMsg) (tea.Model, tea.Cmd) 
 
 	m.modeStates[ModeRange] = StateResults
 	m.selectedIndex = -1
+	m.highlightedIndices = make(map[int]bool)
 	m = m.renderRangeChart()
 	return m, nil
 }

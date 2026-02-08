@@ -11,4 +11,7 @@ const (
 
 	// ChartWidthPadding is the horizontal padding subtracted from terminal width for chart rendering.
 	ChartWidthPadding = 6
+
+	// LegendMaxRows is the maximum number of visible rows in the legend table.
+	LegendMaxRows = 5
 )

@@ -20,8 +20,8 @@ func (m TUIModel) renderInstantChart() TUIModel {
 
 func (m TUIModel) renderRangeChart() TUIModel {
 	width := m.getChartWidth()
-	m.chartContent, m.legendEntries = charts.TimeseriesSplitWithSelection(m.matrix, width, m.selectedIndex)
-	m = m.createLegendTable(5)
+	m.chartContent, m.legendEntries = charts.TimeseriesSplitWithSelection(m.matrix, width, m.selectedIndex, m.highlightedIndices)
+	m = m.createLegendTable()
 	return m
 }
 
@@ -173,7 +173,7 @@ func (m TUIModel) renderLabelsTable() TUIModel {
 
 func (m TUIModel) regenerateRangeChart() TUIModel {
 	width := m.getChartWidth()
-	m.chartContent, _ = charts.TimeseriesSplitWithSelection(m.matrix, width, m.selectedIndex)
+	m.chartContent, _ = charts.TimeseriesSplitWithSelection(m.matrix, width, m.selectedIndex, m.highlightedIndices)
 	return m
 }
 
@@ -201,7 +201,7 @@ func (m TUIModel) getTerminalWidth() int {
 	return DefaultTerminalWidth
 }
 
-func (m TUIModel) createLegendTable(maxRows int) TUIModel {
+func (m TUIModel) createLegendTable() TUIModel {
 	if len(m.legendEntries) == 0 {
 		return m
 	}
@@ -209,7 +209,7 @@ func (m TUIModel) createLegendTable(maxRows int) TUIModel {
 	rows := make([]teatable.Row, 0, len(m.legendEntries))
 	longestMetric := 0
 
-	for _, entry := range m.legendEntries {
+	for i, entry := range m.legendEntries {
 		if len(entry.Metric) > longestMetric {
 			longestMetric = len(entry.Metric)
 		}
@@ -217,21 +217,28 @@ func (m TUIModel) createLegendTable(maxRows int) TUIModel {
 		style := charts.SeriesStyle(entry.ColorIndex)
 		colorIndicator := style.Render("\u2588")
 
+		pin := ""
+		if m.highlightedIndices[i] {
+			pin = "*"
+		}
+
 		rows = append(rows, teatable.NewRow(teatable.RowData{
 			"color":  colorIndicator,
+			"pin":    pin,
 			"metric": entry.Metric,
 		}))
 	}
 
 	columns := []teatable.Column{
 		teatable.NewColumn("color", "", 3),
+		teatable.NewColumn("pin", "", 3),
 		teatable.NewColumn("metric", "Metric", max(longestMetric, 20)),
 	}
 
 	m.legendTable = teatable.
 		New(columns).
 		WithRows(rows).
-		WithPageSize(maxRows).
+		WithPageSize(LegendMaxRows).
 		Focused(m.legendFocused)
 
 	return m

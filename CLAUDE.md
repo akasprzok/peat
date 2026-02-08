@@ -32,7 +32,7 @@ internal/
 │   ├── mode_range.go     # /query_range mode
 │   ├── mode_series.go    # /series mode
 │   ├── mode_labels.go    # /labels mode
-│   ├── constants.go   # Terminal widths, defaults
+│   ├── constants.go   # All value constants (see convention note)
 │   └── shared.go      # ErrorStyle, WarningStyle, spinner
 ├── prometheus/        # API client wrapper
 │   ├── prometheus.go  # Client interface: Query, QueryRange, Series, LabelNames, LabelValues
@@ -40,6 +40,7 @@ internal/
 ├── charts/            # Terminal visualization
 │   ├── barchart.go    # Instant query results
 │   ├── timeseries.go  # Range query results
+│   ├── constants.go   # All value constants (see convention note)
 │   └── colors.go      # Paul Tol's colorblind-accessible palette
 └── tables/            # Interactive table display
     └── tables.go      # Series and label tables
@@ -63,6 +64,10 @@ Per-mode state is stored in parallel arrays indexed by QueryMode:
 - `modeStates[4]TUIState` - State (Idle/Loading/Success/Error)
 - `modeErrors[4]error` - Error per mode
 - `modeDurations[4]time.Duration` - Query duration
+
+### Constants Convention
+
+All non-enum value constants belong in the per-package `constants.go` file. Enum constants (iota) stay in `types.go` alongside their type definitions.
 
 ### Adding a New Mode
 

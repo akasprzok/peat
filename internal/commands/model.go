@@ -52,12 +52,13 @@ type TUIModel struct {
 	selectedLabelIndex int      // Index of selected label row (for restoring position)
 
 	// Rendered content
-	chartContent  string
-	legendEntries []charts.LegendEntry
-	legendTable   teatable.Model
-	seriesTable   teatable.Model
-	labelsTable   teatable.Model
-	selectedIndex int // -1 means no selection
+	chartContent       string
+	legendEntries      []charts.LegendEntry
+	legendTable        teatable.Model
+	seriesTable        teatable.Model
+	labelsTable        teatable.Model
+	selectedIndex      int          // -1 means no selection
+	highlightedIndices map[int]bool // pinned series indices for multi-series display
 
 	// UI state
 	width                int
@@ -77,18 +78,19 @@ func NewTUIModel(client prometheus.Client, rangeValue, stepValue time.Duration, 
 	ti.Width = 60
 
 	return TUIModel{
-		promClient:    client,
-		timeout:       timeout,
-		queryInput:    ti,
-		mode:          ModeInstant,
-		modeStates:    [4]TUIState{StateInput, StateInput, StateInput, StateInput},
-		rangeValue:    rangeValue,
-		stepValue:     stepValue,
-		seriesLimit:   seriesLimit,
-		selectedIndex: -1,
-		focusedPane:   PaneQuery,
-		insertMode:    true, // Start in insert mode so users can immediately type
-		spinner:       NewLoadingSpinner(),
+		promClient:         client,
+		timeout:            timeout,
+		queryInput:         ti,
+		mode:               ModeInstant,
+		modeStates:         [4]TUIState{StateInput, StateInput, StateInput, StateInput},
+		rangeValue:         rangeValue,
+		stepValue:          stepValue,
+		seriesLimit:        seriesLimit,
+		selectedIndex:      -1,
+		highlightedIndices: make(map[int]bool),
+		focusedPane:        PaneQuery,
+		insertMode:         true, // Start in insert mode so users can immediately type
+		spinner:            NewLoadingSpinner(),
 	}
 }
 

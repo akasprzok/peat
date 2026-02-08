@@ -26,17 +26,28 @@ type LegendEntry struct {
 
 // TimeseriesSplit returns the chart and legend entries separately
 func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend []LegendEntry) {
-	return TimeseriesSplitWithSelection(matrix, width, -1)
+	return TimeseriesSplitWithSelection(matrix, width, -1, nil)
 }
 
-// TimeseriesSplitWithSelection returns the chart and legend entries with a selected series highlighted
-// selectedIndex: -1 means no selection, all series shown normally
-func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex int) (chart string, legend []LegendEntry) {
+// isSeriesVisible returns whether a series at index i should be rendered.
+func isSeriesVisible(i int, selectedIndex int, highlightedIndices map[int]bool) bool {
+	if selectedIndex == -1 {
+		return true // No selection: show all series
+	}
+	if i == selectedIndex {
+		return true
+	}
+	return highlightedIndices[i]
+}
+
+// TimeseriesSplitWithSelection returns the chart and legend entries with a selected series highlighted.
+// selectedIndex: -1 means no selection, all series shown normally.
+// highlightedIndices: pinned series that remain visible alongside the selected series.
+func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex int, highlightedIndices map[int]bool) (chart string, legend []LegendEntry) {
 	minYValue := model.SampleValue(math.MaxFloat64)
 	maxYValue := model.SampleValue(-math.MaxFloat64)
 	for i, stream := range matrix {
-		// Skip non-selected series when calculating range
-		if selectedIndex >= 0 && i != selectedIndex {
+		if !isSeriesVisible(i, selectedIndex, highlightedIndices) {
 			continue
 		}
 		for _, sample := range stream.Values {
@@ -62,26 +73,23 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 	lc.SetStyle(lineStyle)
 	lc.SetLineStyle(runes.ThinLineStyle) // ThinLineStyle replaces default linechart arcline rune style
 
-	// Build legend entries and draw all series in their natural order
+	// Build legend entries and draw visible series (except selected, which is drawn last for layering)
 	for i, stream := range matrix {
 		legendEntries = append(legendEntries, LegendEntry{
 			Metric:     stream.Metric.String(),
 			ColorIndex: i,
 		})
 
-		var style lipgloss.Style
-		switch {
-		case selectedIndex == -1:
-			// No selection, show all in their original colors
-			style = SeriesStyle(i)
-		case i == selectedIndex:
-			// Selected series will be drawn separately below for layering
-			continue
-		default:
-			// Non-selected series are hidden
+		// Skip the selected series here; it will be drawn last for layering emphasis
+		if selectedIndex >= 0 && i == selectedIndex {
 			continue
 		}
 
+		if !isSeriesVisible(i, selectedIndex, highlightedIndices) {
+			continue
+		}
+
+		style := SeriesStyle(i)
 		lc.SetDataSetStyle(stream.Metric.String(), style)
 		for _, sample := range stream.Values {
 			point := timeserieslinechart.TimePoint{
@@ -92,10 +100,10 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 		}
 	}
 
-	// If a series is selected, draw it (non-selected series were skipped above)
+	// Draw the selected series last for layering emphasis
 	if selectedIndex >= 0 && selectedIndex < len(matrix) {
 		stream := matrix[selectedIndex]
-		style := SeriesStyle(selectedIndex) // Use original color
+		style := SeriesStyle(selectedIndex)
 
 		lc.SetDataSetStyle(stream.Metric.String(), style)
 		for _, sample := range stream.Values {

@@ -171,9 +171,10 @@ func (m TUIModel) switchToMode(newMode QueryMode) (tea.Model, tea.Cmd) {
 	// Restore new mode's query
 	m.queryInput.SetValue(m.modeQueries[m.mode])
 
-	// Clear any selection
+	// Clear any selection and highlights
 	m.selectedIndex = -1
 	m.legendFocused = false
+	m.highlightedIndices = make(map[int]bool)
 
 	// Delegate to mode's OnSwitchTo for re-rendering if needed
 	m.currentMode().OnSwitchTo(&m)

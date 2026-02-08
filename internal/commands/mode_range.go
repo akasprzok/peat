@@ -28,12 +28,14 @@ func (RangeMode) HandleInteractiveToggle(m *TUIModel) tea.Cmd {
 		// Select the first series and redraw chart immediately
 		*m = m.updateSelectedFromLegendTable()
 		*m = m.regenerateRangeChart()
+		*m = m.createLegendTable()
 	} else {
 		m.focusedPane = PaneQuery
 		// Stay in normal mode - don't focus query input
 		m.legendTable = m.legendTable.Focused(false)
 		m.selectedIndex = -1
 		*m = m.regenerateRangeChart()
+		*m = m.createLegendTable()
 	}
 	return nil
 }
@@ -45,12 +47,26 @@ func (RangeMode) HandleLegendKey(m *TUIModel, msg tea.KeyMsg) tea.Cmd {
 	case "q":
 		return tea.Quit
 	case "i", "esc":
-		// Exit interactive mode
+		// Exit interactive mode — highlights persist
 		m.legendFocused = false
 		m.focusedPane = PaneQuery
 		m.legendTable = m.legendTable.Focused(false)
 		m.selectedIndex = -1
 		*m = m.regenerateRangeChart()
+		*m = m.createLegendTable()
+		return nil
+	case " ":
+		// Toggle highlight on current series
+		if m.selectedIndex >= 0 {
+			if m.highlightedIndices[m.selectedIndex] {
+				delete(m.highlightedIndices, m.selectedIndex)
+			} else {
+				m.highlightedIndices[m.selectedIndex] = true
+			}
+			*m = m.regenerateRangeChart()
+			*m = m.createLegendTable()
+			m.legendTable = m.legendTable.WithHighlightedRow(m.selectedIndex)
+		}
 		return nil
 	}
 
