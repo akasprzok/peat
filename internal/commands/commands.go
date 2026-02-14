@@ -24,7 +24,7 @@ func (c *CLI) Run() error {
 	}
 
 	model := NewTUIModel(client, c.Range, c.Step, c.Limit, c.Timeout)
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
 
 	_, err = p.Run()
 	return err

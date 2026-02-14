@@ -8,7 +8,9 @@ import (
 	"github.com/akasprzok/peat/internal/prometheus"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	teatable "github.com/evertras/bubble-table/table"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -65,9 +67,11 @@ type TUIModel struct {
 	height               int
 	focusedPane          FocusedPane
 	insertMode           bool // true when editing query (insert mode), false for normal mode
+	inputCollapsed       bool // true when query input is collapsed to a single line
 	spinner              spinner.Model
 	legendFocused        bool
 	showShortcutsOverlay bool
+	resultsViewport      viewport.Model
 }
 
 // NewTUIModel creates a new TUI model.
@@ -76,6 +80,9 @@ func NewTUIModel(client prometheus.Client, rangeValue, stepValue time.Duration, 
 	ti.Placeholder = "Enter PromQL query..."
 	ti.Focus()
 	ti.Width = 60
+
+	vp := viewport.New(DefaultTerminalWidth, DefaultTerminalHeight-ChromeHeightExpanded)
+	vp.Style = lipgloss.NewStyle().Background(lipgloss.Color("235"))
 
 	return TUIModel{
 		promClient:         client,
@@ -91,6 +98,7 @@ func NewTUIModel(client prometheus.Client, rangeValue, stepValue time.Duration, 
 		focusedPane:        PaneQuery,
 		insertMode:         true, // Start in insert mode so users can immediately type
 		spinner:            NewLoadingSpinner(),
+		resultsViewport:    vp,
 	}
 }
 
@@ -118,6 +126,7 @@ func (m TUIModel) applyResultCommon(mode QueryMode, warnings v1.Warnings, err er
 	m.modeDurations[mode] = duration
 	m.queryInput.Blur()
 	m.insertMode = false
+	m.inputCollapsed = true
 	m.focusedPane = PaneQuery
 	return m
 }

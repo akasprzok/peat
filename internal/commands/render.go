@@ -20,7 +20,10 @@ func (m TUIModel) renderInstantChart() TUIModel {
 
 func (m TUIModel) renderRangeChart() TUIModel {
 	width := m.getChartWidth()
-	m.chartContent, m.legendEntries = charts.TimeseriesSplitWithSelection(m.matrix, width, m.selectedIndex, m.highlightedIndices)
+	availHeight := m.getAvailableResultsHeight()
+	legendRows := m.getLegendPageSize()
+	chartHeight := availHeight - legendRows - LegendBorderLines - ChartBorderLines
+	m.chartContent, m.legendEntries = charts.TimeseriesSplitWithSelection(m.matrix, width, chartHeight, m.selectedIndex, m.highlightedIndices)
 	m = m.createLegendTable()
 	return m
 }
@@ -83,10 +86,15 @@ func (m TUIModel) renderSeriesTable() TUIModel {
 		rows = append(rows, teatable.NewRow(rowData))
 	}
 
+	pageSize := m.getAvailableResultsHeight() - ChartBorderLines
+	if pageSize < 3 {
+		pageSize = 3
+	}
+
 	m.seriesTable = teatable.
 		New(columns).
 		WithRows(rows).
-		WithPageSize(10).
+		WithPageSize(pageSize).
 		Focused(false).
 		WithBaseStyle(lipgloss.NewStyle())
 
@@ -123,10 +131,15 @@ func (m TUIModel) renderLabelsTable() TUIModel {
 			}))
 		}
 
+		tablePageSize := m.getAvailableResultsHeight() - ChartBorderLines
+		if tablePageSize < 3 {
+			tablePageSize = 3
+		}
+
 		m.labelsTable = teatable.
 			New(columns).
 			WithRows(rows).
-			WithPageSize(15).
+			WithPageSize(tablePageSize).
 			Focused(m.legendFocused).
 			WithBaseStyle(lipgloss.NewStyle())
 
@@ -160,10 +173,15 @@ func (m TUIModel) renderLabelsTable() TUIModel {
 		}))
 	}
 
+	tablePageSize := m.getAvailableResultsHeight() - ChartBorderLines
+	if tablePageSize < 3 {
+		tablePageSize = 3
+	}
+
 	m.labelsTable = teatable.
 		New(columns).
 		WithRows(rows).
-		WithPageSize(15).
+		WithPageSize(tablePageSize).
 		Focused(m.legendFocused).
 		WithBaseStyle(lipgloss.NewStyle()).
 		WithHighlightedRow(m.selectedLabelIndex)
@@ -173,7 +191,10 @@ func (m TUIModel) renderLabelsTable() TUIModel {
 
 func (m TUIModel) regenerateRangeChart() TUIModel {
 	width := m.getChartWidth()
-	m.chartContent, _ = charts.TimeseriesSplitWithSelection(m.matrix, width, m.selectedIndex, m.highlightedIndices)
+	availHeight := m.getAvailableResultsHeight()
+	legendRows := m.getLegendPageSize()
+	chartHeight := availHeight - legendRows - LegendBorderLines - ChartBorderLines
+	m.chartContent, _ = charts.TimeseriesSplitWithSelection(m.matrix, width, chartHeight, m.selectedIndex, m.highlightedIndices)
 	return m
 }
 
@@ -188,6 +209,40 @@ func (m TUIModel) getChartWidth() int {
 		}
 	}
 	return width
+}
+
+func (m TUIModel) getAvailableResultsHeight() int {
+	h := m.height
+	if h <= 0 {
+		h = DefaultTerminalHeight
+	}
+	chrome := ChromeHeightExpanded
+	if m.inputCollapsed && !m.insertMode {
+		chrome = ChromeHeightCollapsed
+	}
+	avail := h - chrome
+	if avail < 1 {
+		avail = 1
+	}
+	return avail
+}
+
+func (m TUIModel) getLegendPageSize() int {
+	avail := m.getAvailableResultsHeight()
+	size := avail / 6
+	if size < LegendMinRows {
+		size = LegendMinRows
+	}
+	if size > LegendMaxRowsCap {
+		size = LegendMaxRowsCap
+	}
+	return size
+}
+
+func (m TUIModel) syncViewportContent() TUIModel {
+	content := m.renderResultsContent()
+	m.resultsViewport.SetContent(content)
+	return m
 }
 
 func (m TUIModel) getTerminalWidth() int {
@@ -238,7 +293,7 @@ func (m TUIModel) createLegendTable() TUIModel {
 	m.legendTable = teatable.
 		New(columns).
 		WithRows(rows).
-		WithPageSize(LegendMaxRows).
+		WithPageSize(m.getLegendPageSize()).
 		Focused(m.legendFocused)
 
 	return m

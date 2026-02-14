@@ -69,5 +69,6 @@ func (InstantMode) RenderResultsStatusBar(m *TUIModel) string {
 func (InstantMode) OnSwitchTo(m *TUIModel) {
 	if m.currentState() == StateResults {
 		m.chartContent = charts.Barchart(m.vector, m.getChartWidth())
+		*m = m.syncViewportContent()
 	}
 }

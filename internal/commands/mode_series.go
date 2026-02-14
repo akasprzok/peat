@@ -109,5 +109,6 @@ func (SeriesMode) RenderResultsStatusBar(m *TUIModel) string {
 func (SeriesMode) OnSwitchTo(m *TUIModel) {
 	if m.currentState() == StateResults {
 		*m = m.renderSeriesTable()
+		*m = m.syncViewportContent()
 	}
 }

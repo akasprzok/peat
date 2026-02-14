@@ -37,6 +37,7 @@ func (RangeMode) HandleInteractiveToggle(m *TUIModel) tea.Cmd {
 		*m = m.regenerateRangeChart()
 		*m = m.createLegendTable()
 	}
+	*m = m.syncViewportContent()
 	return nil
 }
 
@@ -54,6 +55,7 @@ func (RangeMode) HandleLegendKey(m *TUIModel, msg tea.KeyMsg) tea.Cmd {
 		m.selectedIndex = -1
 		*m = m.regenerateRangeChart()
 		*m = m.createLegendTable()
+		*m = m.syncViewportContent()
 		return nil
 	case " ":
 		// Toggle highlight on current series
@@ -66,6 +68,7 @@ func (RangeMode) HandleLegendKey(m *TUIModel, msg tea.KeyMsg) tea.Cmd {
 			*m = m.regenerateRangeChart()
 			*m = m.createLegendTable()
 			m.legendTable = m.legendTable.WithHighlightedRow(m.selectedIndex)
+			*m = m.syncViewportContent()
 		}
 		return nil
 	}
@@ -93,6 +96,7 @@ func (RangeMode) HandleLegendKey(m *TUIModel, msg tea.KeyMsg) tea.Cmd {
 		*m = m.regenerateRangeChart()
 	}
 
+	*m = m.syncViewportContent()
 	return tableCmd
 }
 
@@ -154,5 +158,6 @@ func (RangeMode) RenderResultsStatusBar(m *TUIModel) string {
 func (RangeMode) OnSwitchTo(m *TUIModel) {
 	if m.currentState() == StateResults {
 		*m = m.renderRangeChart()
+		*m = m.syncViewportContent()
 	}
 }

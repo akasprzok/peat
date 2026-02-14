@@ -25,8 +25,8 @@ type LegendEntry struct {
 }
 
 // TimeseriesSplit returns the chart and legend entries separately
-func TimeseriesSplit(matrix model.Matrix, width int) (chart string, legend []LegendEntry) {
-	return TimeseriesSplitWithSelection(matrix, width, -1, nil)
+func TimeseriesSplit(matrix model.Matrix, width, height int) (chart string, legend []LegendEntry) {
+	return TimeseriesSplitWithSelection(matrix, width, height, -1, nil)
 }
 
 // isSeriesVisible returns whether a series at index i should be rendered.
@@ -41,9 +41,10 @@ func isSeriesVisible(i int, selectedIndex int, highlightedIndices map[int]bool) 
 }
 
 // TimeseriesSplitWithSelection returns the chart and legend entries with a selected series highlighted.
+// height: explicit chart height; when <= 0, falls back to width/ChartHeightRatio.
 // selectedIndex: -1 means no selection, all series shown normally.
 // highlightedIndices: pinned series that remain visible alongside the selected series.
-func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex int, highlightedIndices map[int]bool) (chart string, legend []LegendEntry) {
+func TimeseriesSplitWithSelection(matrix model.Matrix, width, height int, selectedIndex int, highlightedIndices map[int]bool) (chart string, legend []LegendEntry) {
 	minYValue := model.SampleValue(math.MaxFloat64)
 	maxYValue := model.SampleValue(-math.MaxFloat64)
 	for i, stream := range matrix {
@@ -60,7 +61,12 @@ func TimeseriesSplitWithSelection(matrix model.Matrix, width int, selectedIndex 
 		}
 	}
 
-	height := width / ChartHeightRatio
+	if height <= 0 {
+		height = width / ChartHeightRatio
+	}
+	if height < MinChartHeight {
+		height = MinChartHeight
+	}
 
 	legendEntries := make([]LegendEntry, 0, len(matrix))
 

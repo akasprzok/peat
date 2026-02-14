@@ -10,7 +10,7 @@ import (
 func TestTimeseriesSplit(t *testing.T) {
 	t.Run("empty matrix returns empty legend", func(t *testing.T) {
 		matrix := model.Matrix{}
-		_, legend := TimeseriesSplit(matrix, 80)
+		_, legend := TimeseriesSplit(matrix, 80, 0)
 
 		if len(legend) != 0 {
 			t.Errorf("len(legend) = %d, want 0", len(legend))
@@ -29,7 +29,7 @@ func TestTimeseriesSplit(t *testing.T) {
 			},
 		}
 
-		_, legend := TimeseriesSplit(matrix, 80)
+		_, legend := TimeseriesSplit(matrix, 80, 0)
 
 		if len(legend) != 1 {
 			t.Fatalf("len(legend) = %d, want 1", len(legend))
@@ -60,7 +60,7 @@ func TestTimeseriesSplit(t *testing.T) {
 			},
 		}
 
-		_, legend := TimeseriesSplit(matrix, 80)
+		_, legend := TimeseriesSplit(matrix, 80, 0)
 
 		if len(legend) != 3 {
 			t.Fatalf("len(legend) = %d, want 3", len(legend))
@@ -85,7 +85,7 @@ func TestTimeseriesSplit(t *testing.T) {
 			},
 		}
 
-		chart, _ := TimeseriesSplit(matrix, 80)
+		chart, _ := TimeseriesSplit(matrix, 80, 0)
 
 		if len(chart) == 0 {
 			t.Error("chart output is empty, want non-empty")
@@ -113,7 +113,7 @@ func TestTimeseriesSplitWithSelection(t *testing.T) {
 	}
 
 	t.Run("selectedIndex=-1 shows all series", func(t *testing.T) {
-		_, legend := TimeseriesSplitWithSelection(matrix, 80, -1, nil)
+		_, legend := TimeseriesSplitWithSelection(matrix, 80, 0, -1, nil)
 
 		if len(legend) != 2 {
 			t.Errorf("len(legend) = %d, want 2", len(legend))
@@ -121,7 +121,7 @@ func TestTimeseriesSplitWithSelection(t *testing.T) {
 	})
 
 	t.Run("selectedIndex=0 highlights first series", func(t *testing.T) {
-		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 0, nil)
+		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 0, 0, nil)
 
 		// Legend still contains all entries
 		if len(legend) != 2 {
@@ -135,7 +135,7 @@ func TestTimeseriesSplitWithSelection(t *testing.T) {
 	})
 
 	t.Run("selectedIndex=1 highlights second series", func(t *testing.T) {
-		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 1, nil)
+		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 0, 1, nil)
 
 		if len(legend) != 2 {
 			t.Errorf("len(legend) = %d, want 2", len(legend))
@@ -148,7 +148,7 @@ func TestTimeseriesSplitWithSelection(t *testing.T) {
 
 	t.Run("selectedIndex out of range is handled", func(t *testing.T) {
 		// Should not panic with out-of-range selection
-		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 99, nil)
+		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 0, 99, nil)
 
 		if len(legend) != 2 {
 			t.Errorf("len(legend) = %d, want 2", len(legend))
@@ -160,7 +160,7 @@ func TestTimeseriesSplitWithSelection(t *testing.T) {
 
 	t.Run("highlighted indices are visible alongside selection", func(t *testing.T) {
 		highlighted := map[int]bool{0: true}
-		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 1, highlighted)
+		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 0, 1, highlighted)
 
 		if len(legend) != 2 {
 			t.Errorf("len(legend) = %d, want 2", len(legend))
@@ -173,7 +173,7 @@ func TestTimeseriesSplitWithSelection(t *testing.T) {
 
 	t.Run("highlighted indices without selection shows all", func(t *testing.T) {
 		highlighted := map[int]bool{0: true}
-		chart, legend := TimeseriesSplitWithSelection(matrix, 80, -1, highlighted)
+		chart, legend := TimeseriesSplitWithSelection(matrix, 80, 0, -1, highlighted)
 
 		if len(legend) != 2 {
 			t.Errorf("len(legend) = %d, want 2", len(legend))

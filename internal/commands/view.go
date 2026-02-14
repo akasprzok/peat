@@ -83,6 +83,19 @@ func (m TUIModel) renderStatusBar() string {
 }
 
 func (m TUIModel) renderQueryInput() string {
+	if m.inputCollapsed && !m.insertMode {
+		collapsedStyle := lipgloss.NewStyle().
+			Background(lipgloss.Color("237")).
+			Foreground(lipgloss.Color("252")).
+			Width(m.getTerminalWidth()).
+			Padding(0, 1)
+		queryText := m.queryInput.Value()
+		if queryText == "" {
+			queryText = "Enter PromQL query..."
+		}
+		return collapsedStyle.Render("  " + queryText)
+	}
+
 	inputStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Padding(0, 1)
@@ -98,19 +111,27 @@ func (m TUIModel) renderQueryInput() string {
 }
 
 func (m TUIModel) renderResults() string {
-	var content string
+	availHeight := m.getAvailableResultsHeight()
 
 	switch m.currentState() {
 	case StateInput:
-		content = renderEmptyState()
+		return padToHeight(renderEmptyState(), availHeight)
 	case StateLoading:
-		content = m.renderLoadingState()
+		return padToHeight(m.renderLoadingState(), availHeight)
 	case StateError:
-		content = m.renderErrorState()
+		return padToHeight(m.renderErrorState(), availHeight)
 	case StateResults:
-		content = m.renderResultsContent()
+		return m.resultsViewport.View()
 	}
 
+	return ""
+}
+
+func padToHeight(content string, targetHeight int) string {
+	lines := strings.Count(content, "\n") + 1
+	if lines < targetHeight {
+		content += strings.Repeat("\n", targetHeight-lines)
+	}
 	return content
 }
 
@@ -162,9 +183,12 @@ func (m TUIModel) renderHelpBar() string {
 		Padding(0, 1)
 
 	var helpText string
-	if m.insertMode {
+	switch {
+	case m.insertMode:
 		helpText = "esc: normal | ?: shortcuts | ctrl+c/q: quit"
-	} else {
+	case m.currentState() == StateResults:
+		helpText = "/: edit | ctrl+d/u: scroll | ?: shortcuts | q: quit"
+	default:
 		helpText = "/: edit | ?: shortcuts | q: quit"
 	}
 
@@ -219,6 +243,17 @@ func renderShortcutsOverlay() string {
 		{"f", "Format PromQL query"},
 	}
 	for _, s := range editShortcuts {
+		content.WriteString(fmt.Sprintf("  %s  %s\n", keyStyle.Render(fmt.Sprintf("%-8s", s.key)), descStyle.Render(s.desc)))
+	}
+
+	// Scrolling
+	content.WriteString(categoryStyle.Render("Scrolling"))
+	content.WriteString("\n")
+	scrollShortcuts := []struct{ key, desc string }{
+		{"Ctrl+d", "Scroll down half page"},
+		{"Ctrl+u", "Scroll up half page"},
+	}
+	for _, s := range scrollShortcuts {
 		content.WriteString(fmt.Sprintf("  %s  %s\n", keyStyle.Render(fmt.Sprintf("%-8s", s.key)), descStyle.Render(s.desc)))
 	}
 

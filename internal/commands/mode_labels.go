@@ -131,5 +131,6 @@ func (LabelsMode) RenderResultsStatusBar(m *TUIModel) string {
 func (LabelsMode) OnSwitchTo(m *TUIModel) {
 	if m.currentState() == StateResults {
 		*m = m.renderLabelsTable()
+		*m = m.syncViewportContent()
 	}
 }

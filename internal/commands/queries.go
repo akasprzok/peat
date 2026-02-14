@@ -110,7 +110,9 @@ func (m TUIModel) handleInstantResult(msg tuiInstantResultMsg) (tea.Model, tea.C
 	}
 
 	m.modeStates[ModeInstant] = StateResults
+	m.resultsViewport.Height = m.getAvailableResultsHeight()
 	m = m.renderInstantChart()
+	m = m.syncViewportContent()
 	return m, nil
 }
 
@@ -126,7 +128,9 @@ func (m TUIModel) handleRangeResult(msg tuiRangeResultMsg) (tea.Model, tea.Cmd) 
 	m.modeStates[ModeRange] = StateResults
 	m.selectedIndex = -1
 	m.highlightedIndices = make(map[int]bool)
+	m.resultsViewport.Height = m.getAvailableResultsHeight()
 	m = m.renderRangeChart()
+	m = m.syncViewportContent()
 	return m, nil
 }
 
@@ -140,7 +144,9 @@ func (m TUIModel) handleSeriesResult(msg tuiSeriesResultMsg) (tea.Model, tea.Cmd
 	}
 
 	m.modeStates[ModeSeries] = StateResults
+	m.resultsViewport.Height = m.getAvailableResultsHeight()
 	m = m.renderSeriesTable()
+	m = m.syncViewportContent()
 	return m, nil
 }
 
@@ -155,7 +161,9 @@ func (m TUIModel) handleLabelsResult(msg tuiLabelsResultMsg) (tea.Model, tea.Cmd
 	}
 
 	m.modeStates[ModeLabels] = StateResults
+	m.resultsViewport.Height = m.getAvailableResultsHeight()
 	m = m.renderLabelsTable()
+	m = m.syncViewportContent()
 	return m, nil
 }
 
@@ -175,5 +183,6 @@ func (m TUIModel) handleLabelValuesResult(msg tuiLabelValuesResultMsg) (tea.Mode
 	m.modeStates[ModeLabels] = StateResults
 	m.viewingLabelValues = true
 	m = m.renderLabelsTable()
+	m = m.syncViewportContent()
 	return m, nil
 }

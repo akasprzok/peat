@@ -12,6 +12,20 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.queryInput.Width = msg.Width - 10
+		m.resultsViewport.Width = msg.Width
+		m.resultsViewport.Height = m.getAvailableResultsHeight()
+		if m.currentState() == StateResults {
+			m.currentMode().OnSwitchTo(&m)
+			m = m.syncViewportContent()
+		}
+		return m, nil
+
+	case tea.MouseMsg:
+		if !m.insertMode && m.currentState() == StateResults {
+			var cmd tea.Cmd
+			m.resultsViewport, cmd = m.resultsViewport.Update(msg)
+			return m, cmd
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -110,6 +124,10 @@ func (m TUIModel) handleInputOrResultsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// NORMAL MODE: Handle shortcuts
+	return m.handleNormalModeKey(msg)
+}
+
+func (m TUIModel) handleNormalModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q":
 		return m, tea.Quit
@@ -130,6 +148,12 @@ func (m TUIModel) handleInputOrResultsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "?":
 		m.showShortcutsOverlay = true
 		return m, nil
+	case "ctrl+d", "ctrl+u":
+		if m.currentState() == StateResults {
+			var cmd tea.Cmd
+			m.resultsViewport, cmd = m.resultsViewport.Update(msg)
+			return m, cmd
+		}
 	}
 
 	return m, nil
@@ -192,8 +216,10 @@ func (m TUIModel) handleEnterKey() (tea.Model, tea.Cmd) {
 
 func (m TUIModel) enterInsertMode() (tea.Model, tea.Cmd) {
 	m.insertMode = true
+	m.inputCollapsed = false
 	m.focusedPane = PaneQuery
 	m.queryInput.Focus()
+	m.resultsViewport.Height = m.getAvailableResultsHeight()
 	return m, nil
 }
 
@@ -216,6 +242,7 @@ func (m TUIModel) handleEscapeKey() (tea.Model, tea.Cmd) {
 		m.legendTable = m.legendTable.Focused(false)
 		m.selectedIndex = -1
 		m = m.regenerateRangeChart()
+		m = m.syncViewportContent()
 	}
 	return m, nil
 }
