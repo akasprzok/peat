@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/prometheus v0.311.1
+	github.com/prometheus/prometheus v0.311.2
 	golang.org/x/term v0.42.0
 )
 
