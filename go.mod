@@ -223,7 +223,7 @@ require (
 	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/evertras/bubble-table v0.22.3
+	github.com/evertras/bubble-table v0.23.0
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lrstanley/bubblezone v0.0.0-20240914071701-b48c55a5e78e // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
