@@ -1,11 +1,11 @@
 module github.com/akasprzok/peat
 
-go 1.25.8
+go 1.26.0
 
 require (
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/prometheus v0.314.0
-	golang.org/x/term v0.45.0
+	golang.org/x/term v0.46.0
 )
 
 require (
@@ -239,7 +239,7 @@ require (
 	github.com/prometheus/common v0.71.0
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
