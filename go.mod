@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/prometheus/client_golang v1.24.1
-	github.com/prometheus/prometheus v0.314.0
+	github.com/prometheus/prometheus v0.315.0
 	golang.org/x/term v0.46.0
 )
 
@@ -203,7 +203,7 @@ require (
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260720155508-bb71a54f79dc // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260825221802-da73d73af1c5 // indirect
 	gopkg.in/ini.v1 v1.67.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/tools v0.6.1 // indirect
@@ -235,7 +235,7 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
-	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.71.0
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
